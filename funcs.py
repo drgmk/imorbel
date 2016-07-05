@@ -36,6 +36,8 @@ def cart2rvbphi(N1,E1,N2,E2,M,dt,d):
     return (R,V,B,phi)
 
 def seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d):
+    PA1 *= np.pi/180.
+    PA2 *= np.pi/180.
     R = S1 * d
     V = d * (S1**2 - 2*S1*S2*np.cos(PA2-PA1) + S2**2)**.5 / dt
     # Calculate B and phi (Equations 1 and A1)
@@ -81,15 +83,13 @@ def get_z_vz_data(R,V,B,N_z,N_vz):
     # Return dictionary of lists and values
     z_vz_data = {'z_list': z_list, \
                  'vz_list': vz_list, \
-                 'z_list': z_list, \
-                 'vz_list': vz_list, \
                  'bound_z_line': bound_z_line, \
                  'bound_vz_line': bound_vz_line}
 
     return z_vz_data
 
 #------------------------------------------------------------------------------
-def calc_elements(z,vz,R,V,B,phi):
+def calc_elements(z,vz,R,V,B,phi,array=0):
     '''Derives orbital elements from position and velocity using the method of
     Murray and Durmott 1999 (equations 2.126 - 2.139). Dimensionless units are
     used, where rho = z/R, nu = vz/V, ap = a/R and hp = h/(VR). Phi is in
@@ -159,6 +159,9 @@ def calc_elements(z,vz,R,V,B,phi):
     # longitude of pericenter
     l = O + w
     while l >= 360: l -= 360.
+
+    if array:
+        return [a,e,i,O,w,f,q,Q,l]
 
     # Add elements to dictionary
     elements = {'a': a, \
