@@ -33,8 +33,12 @@ def cart2rvbphi(N1,E1,N2,E2,M,dt,d):
     B = V**2 * R / (8*np.pi**2 * M)
     phi = np.arccos((N1*N2 + E1*E2 - N1**2 - E1**2) \
                     /((N1**2+E1**2)*((N2-N1)**2+(E2-E1)**2))**.5)
+    # original PA and whether observer is along +ve z
     pa0 = np.arctan2(-E1,N1)
-    return (R,V,B,phi,pa0)
+    pa1 = np.arctan2(-E2,N2)
+    zsgn = -1
+    if 0. <= (pa1-pa0) <= np.pi or -2*np.pi <= (pa1-pa0) < -np.pi: zsgn = 1
+    return (R,V,B,phi,pa0,zsgn)
 
 def seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d):
     PA1 *= np.pi/180.
@@ -45,8 +49,11 @@ def seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d):
     B = V**2 * R / (8*np.pi**2 * M)
     phi = np.arccos((S2*np.cos(PA2-PA1)-S1) \
                     / (S1**2 - 2*S1*S2*np.cos(PA2-PA1) + S2**2)**.5)
+    # original PA and whether observer is along +ve z
     pa0 = PA1
-    return (R,V,B,phi,pa0)
+    zsgn = -1
+    if 0. <= (PA2-PA1) <= 180. or -360. <= (PA2-PA1) < -180.: zsgn = 1
+    return (R,V,B,phi,pa0,zsgn)
 
 
 def get_vz_max_z(z,R,V,B):
@@ -395,7 +402,6 @@ def make_contour_plots(z_vz_data, element_matrices, contour_levels):
                     'f': {'title': '$f$ / $^\circ$', 'number': 8}, \
                     'l': {'title': r'$\varpi$ / $^\circ$', 'number': 7}}
 
-#    elmnt_strs = ['a', 'e', 'i', 'O', 'w', 'f', 'q', 'Q','l']
     elmnt_strs = ['a', 'q', 'Q', 'e', 'i', 'O', 'w', 'l', 'f']
 
     # Generate the contour plot for each orbital element
@@ -405,10 +411,22 @@ def make_contour_plots(z_vz_data, element_matrices, contour_levels):
 
     # Display figure
     plt.savefig('zdz.pdf')
+    plt.close()
+
+#------------------------------------------------------------------------------
+def cart2pol(x, y):
+    rho = np.sqrt(x**2 + y**2)
+    phi = np.arctan2(y, x)
+    return(rho, phi)
+
+def pol2cart(rho, phi):
+    x = rho * np.cos(phi)
+    y = rho * np.sin(phi)
+    return(x, y)
 
 #------------------------------------------------------------------------------
 class DrawOrbit:
-    def __init__(self,orb,ax,R,V,B,phi,pa0):
+    def __init__(self,orb,ax,R,V,B,phi,pa0,zsgn):
         self.orb = orb
         self.ax = ax
         self.R = R
@@ -416,6 +434,7 @@ class DrawOrbit:
         self.B = B
         self.phi = phi
         self.pa0 = pa0
+        self.zsgn = zsgn
         self.cid = orb.figure.canvas.mpl_connect('motion_notify_event',self)
         self.cid = orb.figure.canvas.mpl_connect('button_press_event',self)
 
@@ -431,13 +450,18 @@ class DrawOrbit:
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
         if el['e'] > 1.: return
-        el['O'] += 90 + self.pa0*180/np.pi # make relative to PA of first obs
+        # orbit in frame where planet lies along x-axis
         f = np.arange(100)/99.*360.
         r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
         x = r * ( np.cos(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) -
                   np.sin(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
-        y = r * ( np.sin(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) +
-                  np.cos(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
+        # mirror in y if we're looking from negative z
+        y = self.zsgn * r * ( np.sin(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) +
+                              np.cos(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
+        # convert to real world frame
+        r,t = cart2pol(x,y)
+        t += np.pi/2. + self.pa0
+        x,y = pol2cart(r,t)
         # plot a line if mouse press, otherwise just update
         if event.button != None:
             plt.plot(np.append([0],x),np.append([0],y))
@@ -447,7 +471,7 @@ class DrawOrbit:
         self.orb.figure.canvas.draw()
 
 #------------------------------------------------------------------------------
-def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0):
+def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn):
 
     # Initialise figure
     fig = plt.figure(figsize=(20,10))
@@ -466,7 +490,6 @@ def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,p
                     'f': {'title': '$f$ / $^\circ$', 'number': 7}, \
                     'l': {'title': r'$\varpi$ / $^\circ$', 'number': 8}}
 
-    #    elmnt_strs = ['a', 'e', 'i', 'O', 'w', 'f', 'q', 'Q','l']
     elmnt_strs = ['a', 'q', 'Q', 'e', 'i', 'O', 'w', 'l', 'f']
         
     # Generate the contour plot for each orbital element
@@ -480,7 +503,9 @@ def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,p
     ax = plt.subplot(gs[0,0])
     ax.axis('equal')
     ax.plot(0,0,'*')
-    ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),-np.sin(phi+pa0),np.cos(phi+pa0),angles='xy')
+    ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
+              -np.sin(zsgn*phi+pa0),np.cos(zsgn*phi+pa0),angles='xy')
+#    ax.quiver(R,0,np.cos(phi),zsgn*np.sin(phi),angles='xy')
     orb, = ax.plot(0,0,linewidth=3)
     ax.set_xlim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
     ax.set_ylim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
@@ -488,7 +513,7 @@ def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,p
     ax.set_ylabel(r'$y_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
     ax.yaxis.set_label_position('right')
     ax.yaxis.set_ticks_position('right')
-    orbit = DrawOrbit(orb,ax,R,V,B,phi,pa0)
+    orbit = DrawOrbit(orb,ax,R,V,B,phi,pa0,zsgn)
 
     plt.show()
 
