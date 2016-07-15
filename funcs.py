@@ -33,7 +33,8 @@ def cart2rvbphi(N1,E1,N2,E2,M,dt,d):
     B = V**2 * R / (8*np.pi**2 * M)
     phi = np.arccos((N1*N2 + E1*E2 - N1**2 - E1**2) \
                     /((N1**2+E1**2)*((N2-N1)**2+(E2-E1)**2))**.5)
-    return (R,V,B,phi)
+    pa0 = np.arctan2(-E1,N1)
+    return (R,V,B,phi,pa0)
 
 def seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d):
     PA1 *= np.pi/180.
@@ -44,7 +45,8 @@ def seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d):
     B = V**2 * R / (8*np.pi**2 * M)
     phi = np.arccos((S2*np.cos(PA2-PA1)-S1) \
                     / (S1**2 - 2*S1*S2*np.cos(PA2-PA1) + S2**2)**.5)
-    return (R,V,B,phi)
+    pa0 = PA1
+    return (R,V,B,phi,pa0)
 
 
 def get_vz_max_z(z,R,V,B):
@@ -161,18 +163,18 @@ def calc_elements(z,vz,R,V,B,phi,array=0):
     while l >= 360: l -= 360.
 
     if array:
-        return [a,e,i,O,w,f,q,Q,l]
+        return [a,q,Q,e,i,O,w,l,f]
 
     # Add elements to dictionary
     elements = {'a': a, \
+                'q': q, \
+                'Q': Q, \
                 'e': e, \
                 'i': i, \
                 'O': O, \
                 'w': w, \
-                'f': f, \
-                'q': q, \
-                'Q': Q, \
-                'l': l}
+                'l': l, \
+                'f': f}
 
     return elements
 
@@ -182,7 +184,7 @@ def get_element_grids(z_vz_data,R,V,B,phi):
     bound orbit, calculates the corresponding orbital elements. Outputs grids
     of orbital elements for contour plotting.'''
 
-    print 'Calculating elements...'
+    print('Calculating elements...')
 
     # Unpack lists of z and vz values
     z_list = z_vz_data['z_list']
@@ -241,7 +243,7 @@ def save_data(z_vz_data, element_matrices):
     '''Saves the element grids as .txt files, with the z and vz values along
     the grid edges. Also save the bound / unbound divide line.'''
 
-    print 'Saving data...'
+    print('Saving data...')
 
     # Unpack v and vz lists and bounding lines
     z_list = z_vz_data['z_list']
@@ -334,19 +336,22 @@ def make_individual_cntr_plt(fig, gs, elmnt_str, z_vz_data, element_matrices,
         ax.xaxis.set_ticks_position('both')
         ax.xaxis.set_label_position('top')
 
-    if subplot_number in [2,5]:
+    if subplot_number in [2,5,8]:
         ax.yaxis.tick_right()
         ax.yaxis.set_ticks_position('both')
         ax.yaxis.set_label_position('right')
         ax.set_ylabel(r'$\dot{z}$ / au yr$^{-1}$', labelpad=20, rotation=270,\
             fontsize = 16, fontname="Times New Roman")
 
-    if subplot_number in [0,3]: ax.set_ylabel(r'$\dot{z}$ / au yr$^{-1}$',\
+    if subplot_number in [0,3,6]: ax.set_ylabel(r'$\dot{z}$ / au yr$^{-1}$',\
         fontsize = 16, fontname="Times New Roman")
 
-    if subplot_number in [1,4]:
+    if subplot_number in [1,2,4,5,7,8]:
         ax.tick_params(labelleft='off')
 
+    if subplot_number in [0,1,2,3,4,5]:
+        ax.tick_params(labelbottom='off')
+    
     ax.set_xlabel(r'$z$ / au', fontsize = 16, fontname="Times New Roman")
 
     # Add subplot title
@@ -355,29 +360,43 @@ def make_individual_cntr_plt(fig, gs, elmnt_str, z_vz_data, element_matrices,
         bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
 
 #------------------------------------------------------------------------------
+def default_contour_levels():
+    # Lists of contour levels for each orbital element. Angles in degrees
+    return {'a': [50,120,200,500], \
+            'e': [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.95], \
+            'i': [0,15,30,45,60,75,90], \
+            'O': [0,45,90,135,180,225,270,315], \
+            'w': [0,45,90,135,180,225,270,315], \
+            'f': [0,45,90,135,180,225,270,315], \
+            'q': [20,50,100,250], \
+            'Q': [50,150,250,500,1000], \
+            'l': [0,45,90,135,180,225,270,315]}
+
+#------------------------------------------------------------------------------
 def make_contour_plots(z_vz_data, element_matrices, contour_levels):
     '''Plots contours for all six elements as functions of z and vz.'''
 
-    print 'Making contour plots...'
+    print('Making contour plots...')
 
     # Initialise figure
-    fig = plt.figure()
+    fig = plt.figure(figsize=(12,10))
 
     # Set subplot ratios and white space widths
     gs = gridspec.GridSpec(3, 3)
     gs.update(hspace=0., wspace = 0.)
 
     subplot_pars = {'a': {'title': '$a$ / au', 'number': 0}, \
-                    'e': {'title': '$e$', 'number': 1}, \
-                    'i': {'title': '$i$ / $^\circ$', 'number': 2}, \
-                    'O': {'title': '$\Omega$ / $^\circ$', 'number': 3}, \
-                    'w': {'title': '$\omega$ / $^\circ$', 'number': 4}, \
-                    'f': {'title': '$f$ / $^\circ$', 'number': 5}, \
-                    'q': {'title': '$q$ / au', 'number': 6}, \
-                    'Q': {'title': '$Q$ / au', 'number': 7}, \
-                    'l': {'title': r'$\varpi$ / $^\circ$', 'number': 8}}
+                    'q': {'title': '$q$ / au', 'number': 1}, \
+                    'Q': {'title': '$Q$ / au', 'number': 2}, \
+                    'e': {'title': '$e$', 'number': 3}, \
+                    'i': {'title': '$i$ / $^\circ$', 'number': 4}, \
+                    'O': {'title': '$\Omega$ / $^\circ$', 'number': 5}, \
+                    'w': {'title': '$\omega$ / $^\circ$', 'number': 6}, \
+                    'f': {'title': '$f$ / $^\circ$', 'number': 8}, \
+                    'l': {'title': r'$\varpi$ / $^\circ$', 'number': 7}}
 
-    elmnt_strs = ['a', 'e', 'i', 'O', 'w', 'f', 'q', 'Q','l']
+#    elmnt_strs = ['a', 'e', 'i', 'O', 'w', 'f', 'q', 'Q','l']
+    elmnt_strs = ['a', 'q', 'Q', 'e', 'i', 'O', 'w', 'l', 'f']
 
     # Generate the contour plot for each orbital element
     for elmnt_str in elmnt_strs:
@@ -385,6 +404,92 @@ def make_contour_plots(z_vz_data, element_matrices, contour_levels):
             element_matrices, subplot_pars, contour_levels)
 
     # Display figure
+    plt.savefig('zdz.pdf')
+
+#------------------------------------------------------------------------------
+class DrawOrbit:
+    def __init__(self,orb,ax,R,V,B,phi,pa0):
+        self.orb = orb
+        self.ax = ax
+        self.R = R
+        self.V = V
+        self.B = B
+        self.phi = phi
+        self.pa0 = pa0
+        self.cid = orb.figure.canvas.mpl_connect('motion_notify_event',self)
+        self.cid = orb.figure.canvas.mpl_connect('button_press_event',self)
+
+    def __call__(self,event):
+        # only draw if we're inside the plot, and not in the orbit plot
+        if event.inaxes == self.orb.axes: return
+        if event.xdata == None: return
+        el = calc_elements(event.xdata,event.ydata,self.R,self.V,self.B,self.phi)
+        [txt.remove() for txt in self.ax.texts]
+        self.ax.text(.025,.975,
+                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f']),
+                     transform=self.ax.transAxes, ha='left', \
+                     va='top', fontsize = 10, fontname="Times New Roman", \
+                     bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
+        if el['e'] > 1.: return
+        el['O'] += 90 + self.pa0*180/np.pi # make relative to PA of first obs
+        f = np.arange(100)/99.*360.
+        r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
+        x = r * ( np.cos(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) -
+                  np.sin(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
+        y = r * ( np.sin(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) +
+                  np.cos(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
+        # plot a line if mouse press, otherwise just update
+        if event.button != None:
+            plt.plot(np.append([0],x),np.append([0],y))
+            print('aeiOwf:',el['a'],el['e'],el['i'],el['O'],el['w'],el['f'])
+        else:
+            self.orb.set_data(np.append([0],x),np.append([0],y))
+        self.orb.figure.canvas.draw()
+
+#------------------------------------------------------------------------------
+def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0):
+
+    # Initialise figure
+    fig = plt.figure(figsize=(20,10))
+    
+    # Set subplot ratios and white space widths
+    gs = gridspec.GridSpec(3,3)
+    gs.update(hspace=0.,wspace=0.,left=0.04,bottom=0.06,right=0.46,top=0.95)
+    
+    subplot_pars = {'a': {'title': '$a$ / au', 'number': 0}, \
+                    'q': {'title': '$q$ / au', 'number': 1}, \
+                    'Q': {'title': '$Q$ / au', 'number': 2}, \
+                    'e': {'title': '$e$', 'number': 3}, \
+                    'i': {'title': '$i$ / $^\circ$', 'number': 4}, \
+                    'O': {'title': '$\Omega$ / $^\circ$', 'number': 5}, \
+                    'w': {'title': '$\omega$ / $^\circ$', 'number': 6}, \
+                    'f': {'title': '$f$ / $^\circ$', 'number': 7}, \
+                    'l': {'title': r'$\varpi$ / $^\circ$', 'number': 8}}
+
+    #    elmnt_strs = ['a', 'e', 'i', 'O', 'w', 'f', 'q', 'Q','l']
+    elmnt_strs = ['a', 'q', 'Q', 'e', 'i', 'O', 'w', 'l', 'f']
+        
+    # Generate the contour plot for each orbital element
+    for elmnt_str in elmnt_strs:
+        make_individual_cntr_plt(fig, gs, elmnt_str, z_vz_data, \
+                                 element_matrices, subplot_pars, contour_levels)
+
+    gs = gridspec.GridSpec(1,1)
+    gs.update(left=0.5,bottom=0.06,right=0.95,top=0.95)
+
+    ax = plt.subplot(gs[0,0])
+    ax.axis('equal')
+    ax.plot(0,0,'*')
+    ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),-np.sin(phi+pa0),np.cos(phi+pa0),angles='xy')
+    orb, = ax.plot(0,0,linewidth=3)
+    ax.set_xlim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
+    ax.set_ylim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
+    ax.set_xlabel(r'$x_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
+    ax.set_ylabel(r'$y_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
+    ax.yaxis.set_label_position('right')
+    ax.yaxis.set_ticks_position('right')
+    orbit = DrawOrbit(orb,ax,R,V,B,phi,pa0)
+
     plt.show()
 
 ###############################################################################
