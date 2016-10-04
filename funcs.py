@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 ###############################################################################
 '''Given a companion's sky plane position at two epochs, this program produces
@@ -20,6 +21,9 @@ the corresponding orbital element values.'''
 import numpy as np                  # Numerical functions
 import matplotlib.pyplot as plt     # Plotting functions
 from matplotlib import gridspec     # Subplot gridding
+import argparse                     # for use as a command line script
+import corner                       # corner plots
+from astropy.time import Time       # time
 ###############################################################################
 
 ###############################################################################
@@ -55,6 +59,14 @@ def seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d):
     if 0. <= (PA2-PA1) <= 180. or -360. <= (PA2-PA1) < -180.: zsgn = 1
     return (R,V,B,phi,pa0,zsgn)
 
+''' convert sep/PA to cartesian, PA is assumed E of N, and +ve x is E'''
+def seppa2cart(sep,seperr,pa,paerr):
+    E = -1. * sep * np.sin(pa)
+    N = sep * np.cos(pa)
+    paerrmag = sep * paerr # assume small angles
+    Eerr = np.sqrt( (seperr*np.sin(-pa))**2 + (paerrmag*np.cos(-pa))**2)
+    Nerr = np.sqrt( (seperr*np.cos(-pa))**2 + (paerrmag*np.sin(-pa))**2)
+    return (N,Nerr,E,Eerr)
 
 def get_vz_max_z(z,R,V,B):
     '''For a given value of z, where |z| < z_max, find maximum value of |vz|
@@ -98,7 +110,11 @@ def get_z_vz_data(R,V,B,N_z,N_vz):
     return z_vz_data
 
 #------------------------------------------------------------------------------
-def calc_elements(z,vz,R,V,B,phi,array=0):
+def calc_elements_array(p):
+    l = calc_elements(p[0],p[1],p[2],p[3],p[4],p[5])
+    return np.array([l['a'],l['q'],l['Q'],l['e'],l['i'],l['O'],l['w'],l['l'],l['f']])
+
+def calc_elements(z,vz,R,V,B,phi):
     '''Derives orbital elements from position and velocity using the method of
     Murray and Durmott 1999 (equations 2.126 - 2.139). Dimensionless units are
     used, where rho = z/R, nu = vz/V, ap = a/R and hp = h/(VR). Phi is in
@@ -168,9 +184,6 @@ def calc_elements(z,vz,R,V,B,phi,array=0):
     # longitude of pericenter
     l = O + w
     while l >= 360: l -= 360.
-
-    if array:
-        return [a,q,Q,e,i,O,w,l,f]
 
     # Add elements to dictionary
     elements = {'a': a, \
@@ -369,14 +382,14 @@ def make_individual_cntr_plt(fig, gs, elmnt_str, z_vz_data, element_matrices,
 #------------------------------------------------------------------------------
 def default_contour_levels():
     # Lists of contour levels for each orbital element. Angles in degrees
-    return {'a': [50,120,200,500], \
+    return {'a': [5,10,20,50,100,200,500], \
             'e': [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.95], \
             'i': [0,15,30,45,60,75,90], \
             'O': [0,45,90,135,180,225,270,315], \
             'w': [0,45,90,135,180,225,270,315], \
             'f': [0,45,90,135,180,225,270,315], \
-            'q': [20,50,100,250], \
-            'Q': [50,150,250,500,1000], \
+            'q': [5,10,15,20,50,100,200,500], \
+            'Q': [5,10,20,50,100,200,500,1000], \
             'l': [0,45,90,135,180,225,270,315]}
 
 #------------------------------------------------------------------------------
@@ -443,9 +456,17 @@ class DrawOrbit:
         if event.inaxes == self.orb.axes: return
         if event.xdata == None: return
         el = calc_elements(event.xdata,event.ydata,self.R,self.V,self.B,self.phi)
+        realom = (self.pa0*180/np.pi)+self.zsgn*el['O']
+        if realom < 0: realom += 360.
+        if self.zsgn < 0:
+            realw = 360. - el['w']
+            realf = 360. - el['f']
+        else:
+            realw = el['w']
+            realf = el['f']
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
-                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f']),
+                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f'],realom,realw,realf),
                      transform=self.ax.transAxes, ha='left', \
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
@@ -453,16 +474,20 @@ class DrawOrbit:
         # orbit in frame where planet lies along x-axis
         f = np.arange(100)/99.*360.
         r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
-        x = r * ( np.cos(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) -
-                  np.sin(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
+        cosO = np.cos(el['O']*np.pi/180.)
+        sinO = np.sin(el['O']*np.pi/180.)
+        coswf = np.cos((el['w']+f)*np.pi/180.)
+        sinwf = np.sin((el['w']+f)*np.pi/180.)
+        cosi = np.cos(el['i']*np.pi/180.)
+        x = r * ( cosO * coswf - sinO * sinwf * cosi )
         # mirror in y if we're looking from negative z
-        y = self.zsgn * r * ( np.sin(el['O']*np.pi/180.) * np.cos((el['w']+f)*np.pi/180.) +
-                              np.cos(el['O']*np.pi/180.) * np.sin((el['w']+f)*np.pi/180.) * np.cos(el['i']*np.pi/180.) )
-        # convert to real world frame
+        y = r * ( sinO * coswf + cosO * sinwf * cosi ) * self.zsgn
+        # convert to real world frame and add actual ascending node
         r,t = cart2pol(x,y)
         t += np.pi/2. + self.pa0
         x,y = pol2cart(r,t)
-        # plot a line if mouse press, otherwise just update
+        # plot a line if mouse press, otherwise just update, append [0] so line starts at
+        # star and goes to orbit at preicenter (f=0 is first array element)
         if event.button != None:
             plt.plot(np.append([0],x),np.append([0],y))
             print('aeiOwf:',el['a'],el['e'],el['i'],el['O'],el['w'],el['f'])
@@ -518,3 +543,5 @@ def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,p
     plt.show()
 
 ###############################################################################
+###############################################################################
+

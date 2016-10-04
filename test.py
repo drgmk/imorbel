@@ -1,3 +1,4 @@
+from astropy.time import Time
 import math
 import corner
 import sys
@@ -14,6 +15,17 @@ d = 92.5
 M = 2.35
 R,V,B,phi,pa0,zsgn = cart2rvbphi(N1,E1,N2,E2,M,dt,d)
 
+# HD 206893
+S1 = 270.8 / 1e3
+PA1 = 69.4
+S2 = 274.9 / 1e3
+PA2 = 60.96
+d = Time('2016-08-08')-Time('2015-10-4')
+dt = d.value/365.25
+d = 40.667
+M = 1.27
+R,V,B,phi,pa0,zsgn = seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d)
+
 # GQ Lup b
 #S1 = 0.739
 #PA1 = 275.1
@@ -25,8 +37,8 @@ R,V,B,phi,pa0,zsgn = cart2rvbphi(N1,E1,N2,E2,M,dt,d)
 #R,V,B,phi,pa0,zsgn = seppa2rvbphi(S1,PA1,S2,PA2,M,dt,d)
 
 # Number of z and vz points in the grid (integers)
-N_z = 100
-N_vz = 100
+N_z = 500
+N_vz = 500
 
 # Lists of contour levels for each orbital element. Angles in degrees
 contour_levels = default_contour_levels()
@@ -51,26 +63,26 @@ element_matrices = get_element_grids(z_vz_data,R,V,B,phi)
 #save_data(z_vz_data, element_matrices)
 
 # Make contour plots
-#make_contour_plots(z_vz_data, element_matrices, contour_levels)
-interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn)
+make_contour_plots(z_vz_data, element_matrices, contour_levels)
+#interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn)
 
-#a=[calc_elements(z_vz_data['z_list'][int(math.floor(np.random.random(1)[0]*N_z))],
-#                 z_vz_data['vz_list'][int(math.floor(np.random.random(1)[0]*N_z))],
-#                 R,V,B,phi,array=1) for i in range(100000)]
-#
-#a=[calc_elements(z_vz_data['z_list'][int(math.floor(np.random.random(1)[0]*N_z))],
-#                 np.random.randn(1)[0]*0.1+0.42,
-#                 R,V,B,phi,array=1) for i in range(100000)]
-#
-#b = np.array(a)
-#ok = (b[:,0] > 75 ) & (b[:,0] < 700) & (b[:,3] < 1) # bound
-#fig = corner.corner(b[ok],bins=100,color='k',top_ticks=True,
-#                    labels=('$a/au$','$q/au$','$Q/au$',
-#                            '$e$','$I/^\circ$','$\Omega/^\circ$',
-#                            '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
-#                    range=[1.,1.,1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
-#fig.show()
-#fig.savefig('corner.png')
+a=[calc_elements_array([z_vz_data['z_list'][np.random.randint(N_z)],
+                       z_vz_data['vz_list'][np.random.randint(N_vz)],
+                       R,V,B,phi]) for i in range(1000000)]
+
+#a=[calc_elements_array([z_vz_data['z_list'][int(math.floor(np.random.random(1)[0]*N_z))],
+#                       np.random.randn(1)[0]*0.1+0.42,
+#                       R,V,B,phi]) for i in range(100000)]
+
+b = np.array(a)
+ok = (b[:,1] > 0) & (b[:,2] < 50) & (b[:,3] < 1) # bound
+fig = corner.corner(b[ok],bins=100,color='k',top_ticks=True,
+                    labels=('$a/au$','$q/au$','$Q/au$',
+                            '$e$','$I/^\circ$','$\Omega/^\circ$',
+                            '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
+                    range=[1.,(0.,np.max(b[:,1])),1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
+fig.show()
+fig.savefig('corner.png')
 
 ###############################################################################
 
