@@ -85,7 +85,7 @@ def elem(t,N,Nerr,E,Eerr,M,Merr,d,derr):
     el = pool.map(calc_elements_array,pars)
     el = np.array(el)
 
-    ok = (el[:,1] > 0 ) & (el[:,3] < 1) & (el[:,2] < 250)
+    ok = (el[:,1] > 0 ) & (el[:,3] < 1) & (el[:,2] < 50)
     fig = corner.corner(el[ok],color='k',top_ticks=True,bins=50,
                         labels=('$a/au$','$q/au$','$Q/au$',
                                 '$e$','$I/^\circ$','$\Omega/^\circ$',
@@ -95,7 +95,7 @@ def elem(t,N,Nerr,E,Eerr,M,Merr,d,derr):
     plt.close(fig)
 
 # data
-info = getsys('GQ Lup')
+info = getsys('HD 206893')
 t,N,Nerr,E,Eerr,M,Merr,d,derr = info
 #print(info)
 

@@ -101,11 +101,11 @@ def getsys(name):
         M = 0.7
         Merr = 0.00001
     elif name == 'HD 206893':
-        sep = np.array([271.0,270.3,274.9])/1e3
-        seperr = np.array([0.5,0.6,7.9])/1e3
-        pa = np.array([69.13,69.73,60.96])
-        paerr = np.array([0.11,0.08,1.06])
-        date = ['2015-10-4','2015-10-4','2016-08-08']
+        sep = np.array([260.8,274.9])/1e3
+        seperr = np.array([4.03,7.9])/1e3
+        pa = np.array([69.4,60.96])
+        paerr = np.array([0.23,1.06])
+        date = ['2015-10-4','2016-08-08']
         d = 40.67
         derr = 0.43
         M = 1.27
