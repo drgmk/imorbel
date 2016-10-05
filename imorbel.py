@@ -1,8 +1,7 @@
 import numpy as np
 from multiprocessing import Pool
 import corner
-from velfit import *
-from funcs import get_z_vz_data,calc_elements_array
+from funcs import *
 
 def elem(t,N,Nerr,E,Eerr,M,Merr,d,derr):
 
