@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.append('/Users/grant/code/github/imorbel')
 from funcs import *
 import numpy as np                  # Numerical functions
 import argparse                     # for use as a command line script
@@ -41,6 +43,9 @@ if __name__ == "__main__":
     
     parser.add_argument('--interactive','-i',action='store_true',help='Interactive plot')
 
+    parser.add_argument('--zvzfile',type=str,help='zvz file name',default='zvz.png')
+    parser.add_argument('--elemfile',type=str,help='elem file name',default='elem_noerr.png')
+
     args = parser.parse_args()
 
     # dt using astropy Time
@@ -81,7 +86,7 @@ if __name__ == "__main__":
     else:
 
         # z/vz contour plots    
-        make_contour_plots(z_vz_data, element_matrices, contour_levels)
+        make_contour_plots(z_vz_data, element_matrices, contour_levels, args.zvzfile)
 
         # select random points in z/vz space and get elements
         a = np.array([calc_elements_array([z_vz_data['z_list'][np.random.randint(N_z)],
@@ -102,7 +107,7 @@ if __name__ == "__main__":
                                     '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
                             range=[1.,(0.,np.max(a[:,1])),1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
 
-        fig.savefig('elem_noerr.png')
+        fig.savefig(args.elemfile)
 
 ###############################################################################
 

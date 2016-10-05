@@ -393,7 +393,7 @@ def default_contour_levels():
             'l': [0,45,90,135,180,225,270,315]}
 
 #------------------------------------------------------------------------------
-def make_contour_plots(z_vz_data, element_matrices, contour_levels):
+def make_contour_plots(z_vz_data, element_matrices, contour_levels, zvzfile):
     '''Plots contours for all six elements as functions of z and vz.'''
 
     print('Making contour plots...')
@@ -423,7 +423,7 @@ def make_contour_plots(z_vz_data, element_matrices, contour_levels):
             element_matrices, subplot_pars, contour_levels)
 
     # Display figure
-    plt.savefig('zdz.pdf')
+    plt.savefig(zvzfile)
     plt.close()
 
 #------------------------------------------------------------------------------
