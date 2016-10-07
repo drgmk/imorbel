@@ -4,6 +4,7 @@ import sys
 sys.path.append('/Users/grant/code/github/imorbel')
 from funcs import *
 import numpy as np                  # Numerical functions
+from multiprocessing import Pool
 import argparse                     # for use as a command line script
 import corner                       # corner plots
 from astropy.time import Time       # time
@@ -40,7 +41,7 @@ if __name__ == "__main__":
 
     parser.add_argument('--nelem',type=int,help='Number of grid points to sample',default=10000)
     parser.add_argument('--Qmax',type=float,help='Max apocenter to plot',default=1000.0)
-    
+
     parser.add_argument('--interactive','-i',action='store_true',help='Interactive plot')
 
     parser.add_argument('--zvzfile',type=str,help='zvz file name',default='zvz.png')
@@ -55,8 +56,10 @@ if __name__ == "__main__":
     # compute the basic parameters
     if args.sep1 != None:
         R,V,B,phi,pa0,zsgn = seppa2rvbphi(args.sep1,args.pa1,args.sep2,args.pa2,args.mass,dt,args.distance)
+        titlestr =  'Input parameters\n$S_1:'+str(args.sep1)+'$"  $PA_1:'+str(args.pa1)+'^\circ$  $D_1$:'+str(args.date1)+'    $S_2:'+str(args.sep2)+'$"  $PA_2:'+str(args.pa2)+'^\circ$  $D_2$:'+str(args.date2)+'    $M_\star:'+str(args.mass)+'M_\odot$  $d:'+str(args.distance)+'pc$\n\n\n'
     else:
         R,V,B,phi,pa0,zsgn = cart2rvbphi(args.N1,args.E1,args.N2,args.E2,args,mass,dt,args.distance)
+        titlestr = 'write me!'
 
     print('')
     print('R =', R, 'au')
@@ -85,13 +88,22 @@ if __name__ == "__main__":
     # or make plots
     else:
 
-        # z/vz contour plots    
-        make_contour_plots(z_vz_data, element_matrices, contour_levels, args.zvzfile)
+        # z/vz contour plots
+        make_contour_plots(z_vz_data, element_matrices, contour_levels, args.zvzfile, titlestr)
 
         # select random points in z/vz space and get elements
-        a = np.array([calc_elements_array([z_vz_data['z_list'][np.random.randint(N_z)],
-                                          z_vz_data['vz_list'][np.random.randint(N_vz)],
-                                          R,V,B,phi]) for i in range(args.nelem)])
+        ## a = np.array([calc_elements_array([z_vz_data['z_list'][np.random.randint(N_z)],
+        ##                                   z_vz_data['vz_list'][np.random.randint(N_vz)],
+        ##                                   R,V,B,phi]) for i in range(args.nelem)])
+
+        # parallel version, slightly faster but not much of a saving as lots of time is
+        # spent in get_element_grids above
+        z = z_vz_data['z_list'][np.random.randint(N_z,size=args.nelem)]
+        vz = z_vz_data['vz_list'][np.random.randint(N_vz,size=args.nelem)]
+        pars = []
+        pars = [np.append(pars,[z[i],vz[i],R,V,B,phi]) for i in range(args.nelem)]
+        pool = Pool(processes=8)
+        a = np.array( pool.map(calc_elements_array,pars) )
 
         # select a subset of these, pericenter must be +ve and e<1
         ok = (a[:,1] > 0) & (a[:,3] < 1)
@@ -99,15 +111,24 @@ if __name__ == "__main__":
         ok1 = (a[:,2] < args.Qmax)
 
         ok = np.all([ok,ok1],axis=0)
-        
-        # make corner plot
-        fig = corner.corner(a[ok],bins=100,color='k',top_ticks=True,
+
+        # make corner plot, size pasted from corner code
+        K = len(a[0])
+        factor = 2.0           # size of one side of one panel
+        lbdim = 0.5 * factor   # size of left/bottom margin
+        trdim = 0.2 * factor   # size of top/right margin
+        whspace = 0.05         # w/hspace size
+        plotdim = factor * K + factor * (K - 1.) * whspace
+        dim = lbdim + plotdim + trdim
+
+        fig,axes = plt.subplots(len(a[0]),len(a[0]),figsize=(dim,dim))
+        fig = corner.corner(a[ok],bins=100,color='k',top_ticks=True,fig=fig,
                             labels=('$a/au$','$q/au$','$Q/au$',
                                     '$e$','$I/^\circ$','$\Omega/^\circ$',
                                     '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
                             range=[1.,(0.,np.max(a[:,1])),1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
 
+        axes[1,4].set_title(titlestr)
         fig.savefig(args.elemfile)
 
 ###############################################################################
-
