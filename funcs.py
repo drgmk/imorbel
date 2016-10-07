@@ -22,6 +22,7 @@ import numpy as np                  # Numerical functions
 import matplotlib.pyplot as plt     # Plotting functions
 from matplotlib import gridspec     # Subplot gridding
 import argparse                     # for use as a command line script
+import emcee
 import corner                       # corner plots
 from astropy.time import Time       # time
 ###############################################################################
@@ -393,7 +394,7 @@ def default_contour_levels():
             'l': [0,45,90,135,180,225,270,315]}
 
 #------------------------------------------------------------------------------
-def make_contour_plots(z_vz_data, element_matrices, contour_levels, zvzfile):
+def make_contour_plots(z_vz_data, element_matrices, contour_levels, zvzfile, titlestr):
     '''Plots contours for all six elements as functions of z and vz.'''
 
     print('Making contour plots...')
@@ -421,6 +422,10 @@ def make_contour_plots(z_vz_data, element_matrices, contour_levels, zvzfile):
     for elmnt_str in elmnt_strs:
         make_individual_cntr_plt(fig, gs, elmnt_str, z_vz_data, \
             element_matrices, subplot_pars, contour_levels)
+
+    fig.add_subplot(gs[1])
+    plt.title(titlestr)
+    plt.tight_layout()
 
     # Display figure
     plt.savefig(zvzfile)
@@ -466,7 +471,7 @@ class DrawOrbit:
             realf = el['f']
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
-                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f'],realom,realw,realf),
+                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f'],realom,realw,realf),
                      transform=self.ax.transAxes, ha='left', \
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
