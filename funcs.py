@@ -580,7 +580,9 @@ def plotchain(chain,fname,labels=('par0','par1','par2','par3')):
     plt.close(fig)
 
 '''Return samples from mcmc fitting to companion positions'''
-def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000):
+def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
+           plottri=False,trifile='velfit_tri.png',
+           plotsky=False,skyfile='velfit_sky.png'):
 
     # get initial parameter guesses from first and last points
     R,V,B,phi,pa0,zsgn = cart2rvbphi(N[0],E[0],N[-1],E[-1],1.0,t[-1]-t[0],1.0)
@@ -595,32 +597,42 @@ def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000):
     sampler.reset()
     pos,_,_ = sampler.run_mcmc(pos,nruns)
 
-    # make plots
-#    print(sampler.acor)
-#    print(sampler.acceptance_fraction)
+    # array of samples to return, setting angle to 0..360
     samples = sampler.chain[:, :, :].reshape((-1, ndim))
-    labels = ('$x_0$/arcsec','$y_0$/arcsec','$V$/arcsec/yr','$PA_V/rad$')
-    plotchain(sampler.chain,'velfit_chain.png',labels=labels)
-    fig = corner.corner(samples,labels=labels)
-    fig.savefig('velfit_tri.png')
-    plt.close(fig)
+    while np.min( samples[:,3] ) < 0:
+        samples[samples[:,3]<0,3] += 2*np.pi
+    while np.max( samples[:,3] ) > 2*np.pi:
+        samples[samples[:,3]>2*np.pi,3] -= 2*np.pi
 
-    fig,ax = plt.subplots()
-    ax.axis('equal')
-    for i in range(100):
-        par1 = sampler.chain[np.random.randint(nwalkers),np.random.randint(nruns),:]
-        ax.plot(-1*( par1[0] - (t-np.mean(t)) * par1[2] * np.sin(par1[3]) ),
-                par1[1] + (t-np.mean(t)) * par1[2] * np.cos(par1[3]),alpha=0.1)
-    ax.set_xlabel(r'$\alpha$, arcsec')
-    ax.set_ylabel(r'$\delta$, arcsec')
-    ax.invert_xaxis()
-    ax.scatter(-1*E,N)
-    ax.errorbar(-1*E,N,xerr=Eerr,yerr=Nerr,)
-    fig.savefig('velfit_sky.png')
-    plt.close(fig)
+    # sanity check on fit
+    ## print(sampler.acor)
+    ## print(sampler.acceptance_fraction)
 
-    # save samples
-    return sampler.chain[:, :, :].reshape((-1, ndim))
+    # make plots
+    if plottri:
+        labels = ('$x_0$/arcsec','$y_0$/arcsec','$V$/arcsec/yr','$PA_V/rad$')
+        plotchain(sampler.chain,'velfit_chain.png',labels=labels)
+        fig = corner.corner(samples,labels=labels)
+        fig.savefig(trifile)
+        plt.close(fig)
+
+    if plotsky:
+        fig,ax = plt.subplots()
+        ax.axis('equal')
+        for i in range(100):
+            par1 = sampler.chain[np.random.randint(nwalkers),np.random.randint(nruns),:]
+            ax.plot(-1*( par1[0] - (t-np.mean(t)) * par1[2] * np.sin(par1[3]) ),
+                    par1[1] + (t-np.mean(t)) * par1[2] * np.cos(par1[3]),alpha=0.1)
+        ax.set_xlabel(r'$\alpha$, arcsec')
+        ax.set_ylabel(r'$\delta$, arcsec')
+        ax.invert_xaxis()
+        ax.scatter(-1*E,N)
+        ax.errorbar(-1*E,N,xerr=Eerr,yerr=Nerr,)
+        fig.savefig(skyfile)
+        plt.close(fig)
+
+    # return samples
+    return samples
 
 def getsys(name):
     if name == 'GQ Lup':
