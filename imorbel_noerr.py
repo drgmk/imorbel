@@ -81,9 +81,10 @@ if __name__ == "__main__":
     # Cycle through z, vz values, and derive orbital elements at each set of values
     element_matrices = get_element_grids(z_vz_data,R,V,B,phi)
 
-    # do interactive plot
+    # do interactive plot and exit when window is closed
     if args.interactive:
         interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn)
+        exit
 
     # or make plots
     else:
@@ -130,5 +131,3 @@ if __name__ == "__main__":
 
         axes[1,4].set_title(titlestr)
         fig.savefig(args.elemfile)
-
-###############################################################################
