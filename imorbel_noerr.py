@@ -13,7 +13,7 @@ from astropy.time import Time       # time
 if __name__ == "__main__":
 
     # inputs
-    parser = argparse.ArgumentParser(description='imorbel - orbital constraints for linear motion')
+    parser = argparse.ArgumentParser(description='imorbel_noerr - orbital constraints for linear motion')
 
     parser1 = parser.add_mutually_exclusive_group(required=True)
     parser1.add_argument('--sep1',type=float,help='Separation at epoch 1')
@@ -24,12 +24,12 @@ if __name__ == "__main__":
     parser2.add_argument('--N2',type=float,help='North separation at epoch 2')
 
     parser3 = parser.add_mutually_exclusive_group(required=True)
-    parser3.add_argument('--E1',type=float,help='East separation at epoch 1')
     parser3.add_argument('--pa1',type=float,help='Position angle (E of N) at epoch 1')
+    parser3.add_argument('--E1',type=float,help='East separation at epoch 1')
 
     parser4 = parser.add_mutually_exclusive_group(required=True)
-    parser4.add_argument('--E2',type=float,help='East separation at epoch 2')
     parser4.add_argument('--pa2',type=float,help='Position angle (E of N) at epoch 2')
+    parser4.add_argument('--E2',type=float,help='East separation at epoch 2')
 
     parser.add_argument('--date1',type=str,help='Date (YYYY-MM-DD) of epoch 1',required=True)
     parser.add_argument('--date2',type=str,help='Date (YYYY-MM-DD) of epoch 2',required=True)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         titlestr =  'Input parameters\n$S_1:'+str(args.sep1)+'$"  $PA_1:'+str(args.pa1)+'^\circ$  $D_1$:'+str(args.date1)+'    $S_2:'+str(args.sep2)+'$"  $PA_2:'+str(args.pa2)+'^\circ$  $D_2$:'+str(args.date2)+'    $M_\star:'+str(args.mass)+'M_\odot$  $d:'+str(args.distance)+'pc$\n\n\n'
     else:
         R,V,B,phi,pa0,zsgn = cart2rvbphi(args.N1,args.E1,args.N2,args.E2,args,mass,dt,args.distance)
-        titlestr = 'write me!'
+        titlestr =  'Input parameters\n$N_1:'+str(args.N1)+'$"  $E_1:'+str(args.E1)+'$"  $D_1$:'+str(args.date1)+'    $N_2:'+str(args.N2)+'$"  $E_2:'+str(args.E2)+'$"  $D_2$:'+str(args.date2)+'    $M_\star:'+str(args.mass)+'M_\odot$  $d:'+str(args.distance)+'pc$\n\n\n'
 
     print('')
     print('R =', R, 'au')
