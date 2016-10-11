@@ -612,7 +612,8 @@ def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
     if plottri:
         labels = ('$x_0$/arcsec','$y_0$/arcsec','$V$/arcsec/yr','$PA_V/rad$')
         plotchain(sampler.chain,'velfit_chain.png',labels=labels)
-        fig = corner.corner(samples,labels=labels)
+        fig = corner.corner(samples,labels=labels,
+                            quantiles=[0.16, 0.5, 0.84],show_titles=True)
         fig.savefig(trifile)
         plt.close(fig)
 
