@@ -39,7 +39,12 @@ if __name__ == "__main__":
     parser.add_argument('--Qmax',type=float,help='Max apocenter to plot',default=1000.0)
 
     parser.add_argument('--zvzfile',type=str,help='zvz file name',default='zvz.png')
-    parser.add_argument('--elemfile',type=str,help='elem file name',default='elem_noerr.png')
+    parser.add_argument('--elemfile',type=str,help='elem file name',default='elem.png')
+
+    parser.add_argument('--velfit_sky',type=str,help='velfit sky file name',default='velfit_sky.png')
+    parser.add_argument('--velfit_tri',type=str,help='velfit corner file name',default='velfit_tri.png')
+    parser.add_argument('--velfit_chain',type=str,help='chains file name',default='velfit_chain.png')
+    parser.add_argument('--inparams_tri',type=str,help='parameters file name',default='inparams_tri.png')
 
     parser.add_argument('--interactive','-i',action='store_true',help='Interactive plot')
 
@@ -61,6 +66,8 @@ if __name__ == "__main__":
     else:
         N,e_N,E,e_E = args.N,args.e_N,args.E,args.e_E
 
+#    print(N,e_N,E,e_E)
+        
     # convert the dates
     t = Time(args.date).decimalyear
         
@@ -68,7 +75,9 @@ if __name__ == "__main__":
     nwalk = 32
     samples = velfit(t,N,e_N,E,e_E,
                      nwalkers=nwalk,nruns=1000,
-                     plotsky=True,plottri=True)
+                     plotsky=True,skyfile=args.velfit_sky,
+                     plottri=True,trifile=args.velfit_tri,
+                     plotchain=True,chainfile=args.velfit_chain)
     best = np.median(samples,axis=0)
 
     # extract the best fit parameters
@@ -148,7 +157,7 @@ if __name__ == "__main__":
                   '$B$','$\phi/^\circ$',
                   '$M_\star/M_\odot$','$d/pc$',)
         fig = corner.corner(extra,labels=labels,quantiles=[0.16, 0.5, 0.84],show_titles=True)
-        fig.savefig('inparams_tri.png')
+        fig.savefig(args.inparams_tri)
         plt.close(fig)
 
         # Define tested region of z, vz space, maximising by choosing the largest B and
@@ -214,5 +223,5 @@ if __name__ == "__main__":
                                     '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
                             range=[1.,(0.,np.max(el[:,1])),1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
         axes[1,4].set_title(titlestr)
-        fig.savefig('elem.png')
+        fig.savefig(args.elemfile)
         plt.close(fig)

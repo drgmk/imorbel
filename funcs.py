@@ -566,7 +566,7 @@ def velfit_func(par,t,N,Nerr,E,Eerr,verb=0):
     chi2 = dist2/err2
     return -0.5 * np.sum(chi2)
 
-def plotchain(chain,fname,labels=('par0','par1','par2','par3')):
+def plot_chain(chain,fname,labels=('par0','par1','par2','par3')):
     nwalkers,nrun,ndim = chain.shape
     plt.figure()
     fig,ax = plt.subplots(ndim,sharex=True)
@@ -582,7 +582,8 @@ def plotchain(chain,fname,labels=('par0','par1','par2','par3')):
 '''Return samples from mcmc fitting to companion positions'''
 def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
            plottri=False,trifile='velfit_tri.png',
-           plotsky=False,skyfile='velfit_sky.png'):
+           plotsky=False,skyfile='velfit_sky.png',
+           plotchain=False,chainfile='velfit_chain.png'):
 
     # get initial parameter guesses from first and last points
     R,V,B,phi,pa0,zsgn = cart2rvbphi(N[0],E[0],N[-1],E[-1],1.0,t[-1]-t[0],1.0)
@@ -597,12 +598,20 @@ def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
     sampler.reset()
     pos,_,_ = sampler.run_mcmc(pos,nruns)
 
+    labels = ('$x_0$/arcsec','$y_0$/arcsec','$V$/arcsec/yr','$PA_V/rad$')
+
+    if plotchain:
+        plot_chain(sampler.chain,chainfile,labels=labels)
+
     # array of samples to return, setting angle to 0..360
     samples = sampler.chain[:, :, :].reshape((-1, ndim))
+    samples[:,3] = samples[:,3] % (2*np.pi) # in case results are crazy large
     while np.min( samples[:,3] ) < 0:
-        samples[samples[:,3]<0,3] += 2*np.pi
+        neg = np.where(samples[:,3] < 0)
+        samples[neg,3] = samples[neg,3] + 2*np.pi
     while np.max( samples[:,3] ) > 2*np.pi:
-        samples[samples[:,3]>2*np.pi,3] -= 2*np.pi
+        pos = np.where(samples[:,3] > 0)
+        samples[pos,3] -= 2*np.pi
 
     # sanity check on fit
     ## print(sampler.acor)
@@ -610,8 +619,6 @@ def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
 
     # make plots
     if plottri:
-        labels = ('$x_0$/arcsec','$y_0$/arcsec','$V$/arcsec/yr','$PA_V/rad$')
-        plotchain(sampler.chain,'velfit_chain.png',labels=labels)
         fig = corner.corner(samples,labels=labels,
                             quantiles=[0.16, 0.5, 0.84],show_titles=True)
         fig.savefig(trifile)
