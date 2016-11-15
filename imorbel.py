@@ -97,9 +97,9 @@ if __name__ == "__main__":
     phi = best[3] - pa0
     if phi > np.pi:
         phi -= 2*np.pi
-    zsgn = 1
+    zsgnbest = 1
     if phi < 0:
-        zsgn = -1
+        zsgnbest = -1
         phi = -1. * phi
 
     print('')
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     print('B =', B)
     print('phi =', phi/np.pi*180, 'deg')
     print('PA0 =', pa0/np.pi*180, 'deg')
-    print("Zsign =",zsgn)
+    print("Zsign =",zsgnbest)
     print('')
 
     titlestr = str(args)+'\n\n'
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     # do interactive plot for best fit and exit when window is closed
     if args.interactive:
         plt.close('all')
-        interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn)
+        interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgnbest)
         exit
 
     # or make plots
@@ -301,7 +301,7 @@ if __name__ == "__main__":
             ax.plot(x,y,alpha=0.5)
 
         ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
-                  -np.sin(zsgn*phi+pa0),np.cos(zsgn*phi+pa0),angles='xy')
+                  -np.sin(zsgnbest*phi+pa0),np.cos(zsgnbest*phi+pa0),angles='xy')
 
         fig.savefig(args.skyfile)
         plt.close(fig)
