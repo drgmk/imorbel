@@ -33,6 +33,13 @@ if __name__ == "__main__":
     parser.add_argument('--distance',type=float,help='Distance (pc)',required=True)
     parser.add_argument('--e_distance',type=float,help='Distance uncertainty (pc)',required=True)
 
+    # other epoch constraints
+    parser.add_argument('--other-epoch',type=str,help='Other epoch',default=np.nan)
+    parser.add_argument('--other-epoch-sep',type=float,help='Sep at other epoch',default=np.nan)
+    parser3 = parser.add_mutually_exclusive_group()
+    parser3.add_argument('--other-epoch-lt',help='Require r<X at ther epoch',action='store_true')
+    parser3.add_argument('--other-epoch-gt',help='Require r>X at ther epoch',action='store_true')
+
     parser.add_argument('--nzvz',type=int,help='Number of z/vz grid points',default=100)
     parser.add_argument('--nelem',type=int,help='Number of element samples (approx)',default=10000)
 
@@ -113,6 +120,35 @@ if __name__ == "__main__":
     # Cycle through z, vz values, and derive orbital elements at each set of values
     element_matrices = get_element_grids(z_vz_data,R,V,B,phi)
 
+    # compute radius at some epoch in the past/future, use this to
+    # create a boolean grid to reject orbits
+    # TODO: plot constraint without implementing it
+    try:
+        dt = Time(args.other_epoch).decimalyear - np.mean(t)
+        rsky,_,_ = pos_at_epoch(element_matrices,args.mass,dt)
+
+        # decide what to do
+        if args.other_epoch_lt:
+            out = rsky > args.other_epoch_sep * args.distance
+        elif args.other_epoch_gt:
+            out = rsky < args.other_epoch_sep * args.distance
+        else:
+            out = np.zeros(element_matrices['a'].shape,dtype=bool)
+
+    except:
+        # if other_epoch is nan, set out to False (i.e. not rejected)
+        out = np.zeros(element_matrices['a'].shape,dtype=bool)
+
+    element_matrices['a'][out] = 1e9
+    element_matrices['e'][out] = 1e9
+    element_matrices['i'][out] = 1e9
+    element_matrices['O'][out] = 1e9
+    element_matrices['w'][out] = 1e9
+    element_matrices['f'][out] = 1e9
+    element_matrices['q'][out] = 1e9
+    element_matrices['Q'][out] = 1e9
+    element_matrices['l'][out] = 1e9
+
     # do interactive plot for best fit and exit when window is closed
     if args.interactive:
         plt.close('all')
@@ -188,14 +224,26 @@ if __name__ == "__main__":
             phidist[neg] = -1 * phidist[neg]
 
         # z and vz arrays
-        z = z_vz_data['z_list'][np.random.randint(args.nzvz,size=args.nelem)]
-        vz = z_vz_data['vz_list'][np.random.randint(args.nzvz,size=args.nelem)]
+#        z = z_vz_data['z_list'][np.random.randint(args.nzvz,size=args.nelem)]
+#        vz = z_vz_data['vz_list'][np.random.randint(args.nzvz,size=args.nelem)]
 
         # grab a series of random elements, these are correlated so need to select the
         # same i from each
+#        pars = []
+#        pars = [np.append(pars,[z[i],vz[i],Rdist[i],Vdist[i],Bdist[i],phidist[i]]) for i in range(args.nelem)]
+
+        # ensure we get nelem elements, rejecting unbound or
+        # excluded orbits
         pars = []
-        pars = [np.append(pars,[z[i],vz[i],Rdist[i],Vdist[i],Bdist[i],phidist[i]]) for i in range(args.nelem)]
-                             
+        while len(pars) < args.nelem:
+            zi = np.random.randint(args.nzvz)
+            vzi = np.random.randint(args.nzvz)
+            if not out[vzi][zi]:
+                z = z_vz_data['z_list'][zi]
+                vz = z_vz_data['vz_list'][vzi]
+                i = np.random.randint(args.nelem)
+                pars.append( np.append([],[z,vz,Rdist[i],Vdist[i],Bdist[i],phidist[i]]) )
+
         pool = Pool(processes=8)
         el = pool.map(calc_elements_array,pars)
         el = np.array(el)

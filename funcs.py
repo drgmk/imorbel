@@ -564,14 +564,8 @@ class DrawOrbit:
         if event.inaxes == self.orb.axes: return
         if event.xdata == None: return
         el = calc_elements(event.xdata,event.ydata,self.R,self.V,self.B,self.phi)
-        realom = (self.pa0*180/np.pi)+self.zsgn*el['O']
-        if realom < 0: realom += 360.
-        if self.zsgn < 0:
-            realw = 360. - el['w']
-            realf = 360. - el['f']
-        else:
-            realw = el['w']
-            realf = el['f']
+        x,y,realom,realw,realf = calc_sky_orbit(el,self.pa0,self.zsgn)
+
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
                      '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f'],realom,realw,realf),
@@ -579,21 +573,7 @@ class DrawOrbit:
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
         if el['e'] > 1.: return
-        # orbit in frame where planet lies along x-axis
-        f = np.arange(100)/99.*360.
-        r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
-        cosO = np.cos(el['O']*np.pi/180.)
-        sinO = np.sin(el['O']*np.pi/180.)
-        coswf = np.cos((el['w']+f)*np.pi/180.)
-        sinwf = np.sin((el['w']+f)*np.pi/180.)
-        cosi = np.cos(el['i']*np.pi/180.)
-        x = r * ( cosO * coswf - sinO * sinwf * cosi )
-        # mirror in y if we're looking from negative z
-        y = r * ( sinO * coswf + cosO * sinwf * cosi ) * self.zsgn
-        # convert to real world frame and add actual ascending node
-        r,t = cart2pol(x,y)
-        t += np.pi/2. + self.pa0
-        x,y = pol2cart(r,t)
+
         # plot a line if mouse press, otherwise just update, append [0] so line starts at
         # star and goes to orbit at preicenter (f=0 is first array element)
         if event.button != None:
@@ -604,10 +584,47 @@ class DrawOrbit:
         self.orb.figure.canvas.draw()
 
 #------------------------------------------------------------------------------
+def calc_sky_orbit(el,pa0,zsgn):
+    """Calculate orbit on the sky.
+        
+    TODO:merge this with pos_at_epoch
+    """
+
+    realom = (pa0*180/np.pi)+zsgn*el['O']
+    if realom < 0: realom += 360.
+    if zsgn < 0:
+        realw = 360. - el['w']
+        realf = 360. - el['f']
+    else:
+        realw = el['w']
+        realf = el['f']
+
+    if el['e'] > 1.:
+        return 0,0,0,0,0
+
+    # orbit in frame where planet lies along x-axis
+    f = np.arange(100)/99.*360.
+    r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
+    cosO = np.cos(el['O']*np.pi/180.)
+    sinO = np.sin(el['O']*np.pi/180.)
+    coswf = np.cos((el['w']+f)*np.pi/180.)
+    sinwf = np.sin((el['w']+f)*np.pi/180.)
+    cosi = np.cos(el['i']*np.pi/180.)
+    x = r * ( cosO * coswf - sinO * sinwf * cosi )
+    # mirror in y if we're looking from negative z
+    y = r * ( sinO * coswf + cosO * sinwf * cosi ) * zsgn
+    # convert to real world frame and add actual ascending node
+    r,t = cart2pol(x,y)
+    t += np.pi/2. + pa0
+    x,y = pol2cart(r,t)
+    return x,y,realom,realw,realf
+
+
+#------------------------------------------------------------------------------
 def interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn):
 
     # Initialise figure
-    fig = plt.figure(figsize=(20,10))
+    fig = plt.figure(figsize=(16,8))
     
     # Set subplot ratios and white space widths
     gs = gridspec.GridSpec(3,3)

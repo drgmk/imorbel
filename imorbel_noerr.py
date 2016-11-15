@@ -4,7 +4,6 @@ import sys
 sys.path.append('/Users/grant/code/github/imorbel')
 import argparse                     # for use as a command line script
 
-import matplotlib.pyplot as plt
 import numpy as np                  # Numerical functions
 from multiprocessing import Pool
 import corner                       # corner plots
@@ -43,7 +42,9 @@ if __name__ == "__main__":
     # other epoch constraints
     parser.add_argument('--other-epoch',type=str,help='Other epoch',default=np.nan)
     parser.add_argument('--other-epoch-sep',type=float,help='Sep at other epoch',default=np.nan)
-    parser.add_argument('--other-epoch-lt',help='Require r<X at ther epoch',action='store_true')
+    parser5 = parser.add_mutually_exclusive_group()
+    parser5.add_argument('--other-epoch-lt',help='Require r<X at ther epoch',action='store_true')
+    parser5.add_argument('--other-epoch-gt',help='Require r>X at ther epoch',action='store_true')
 
     # other plotting config
     parser.add_argument('--nzvz',type=int,help='Number of z/vz grid points',default=100)
@@ -93,25 +94,33 @@ if __name__ == "__main__":
 
     # compute radius at some epoch in the past/future, use this to
     # create a boolean grid to reject orbits
+    # TODO: plot constraint without implementing it
     try:
         dt = Time(args.other_epoch) - Time(args.date1)
         dt.format = 'jd'
         rsky,_,_ = pos_at_epoch(element_matrices,args.mass,dt.value/365.25)
 
+        # decide what to do
         if args.other_epoch_lt:
             out = rsky > args.other_epoch_sep * args.distance
-            element_matrices['a'][out] = 1e9
-            element_matrices['e'][out] = 1e9
-            element_matrices['i'][out] = 1e9
-            element_matrices['O'][out] = 1e9
-            element_matrices['w'][out] = 1e9
-            element_matrices['f'][out] = 1e9
-            element_matrices['q'][out] = 1e9
-            element_matrices['Q'][out] = 1e9
-            element_matrices['l'][out] = 1e9
+        elif args.other_epoch_gt:
+            out = rsky < args.other_epoch_sep * args.distance
+        else:
+            out = np.zeros(element_matrices['a'].shape,dtype=bool)
+
     except:
         # if other_epoch is nan, set out to False (i.e. not rejected)
         out = np.zeros(element_matrices['a'].shape,dtype=bool)
+
+    element_matrices['a'][out] = 1e9
+    element_matrices['e'][out] = 1e9
+    element_matrices['i'][out] = 1e9
+    element_matrices['O'][out] = 1e9
+    element_matrices['w'][out] = 1e9
+    element_matrices['f'][out] = 1e9
+    element_matrices['q'][out] = 1e9
+    element_matrices['Q'][out] = 1e9
+    element_matrices['l'][out] = 1e9
 
     # do interactive plot
     if args.interactive:
