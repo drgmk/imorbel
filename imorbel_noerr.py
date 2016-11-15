@@ -50,12 +50,14 @@ if __name__ == "__main__":
     parser.add_argument('--nzvz',type=int,help='Number of z/vz grid points',default=100)
 
     parser.add_argument('--nelem',type=int,help='Number of grid points to sample',default=10000)
+    parser.add_argument('--norb',type=int,help='Number of orbits in sky plot',default=100)
     parser.add_argument('--Qmax',type=float,help='Max apocenter to plot',default=1000.0)
 
     parser.add_argument('--interactive','-i',action='store_true',help='Interactive plot')
 
     parser.add_argument('--zvzfile',type=str,help='zvz file name',default='zvz.png')
     parser.add_argument('--elemfile',type=str,help='elem file name',default='elem_noerr.png')
+    parser.add_argument('--skyfile',type=str,help='sky orbits file name',default='sky.png')
 
     args = parser.parse_args()
 
@@ -183,3 +185,30 @@ if __name__ == "__main__":
 
         axes[1,4].set_title(titlestr)
         fig.savefig(args.elemfile)
+
+        # sky plot with some orbits
+        fig,ax = plt.subplots(figsize=(8,8))
+        ax.axis('equal')
+        ax.plot(0,0,'*')
+
+        ax.set_xlim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
+        ax.set_ylim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
+        ax.set_xlabel(r'$x_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
+        ax.set_ylabel(r'$y_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
+
+        if np.isfinite(args.other_epoch_sep):
+            c = plt.Circle((0,0),args.other_epoch_sep*args.distance,fill=False,
+                           linestyle='--',lw=2)
+            ax.add_patch(c)
+
+        for i in range(args.norb):
+            el = calc_elements(pars[i][0],pars[i][1],pars[i][2],
+                               pars[i][3],pars[i][4],pars[i][5])
+            x,y,_,_,_  = calc_sky_orbit(el,pa0,zsgn)
+            ax.plot(x,y,alpha=0.5)
+
+        ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
+                  -np.sin(zsgn*phi+pa0),np.cos(zsgn*phi+pa0),angles='xy')
+
+        fig.savefig(args.skyfile)
+        plt.close(fig)
