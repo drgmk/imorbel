@@ -260,6 +260,109 @@ def get_element_grids(z_vz_data,R,V,B,phi):
     return element_matrices
 
 #------------------------------------------------------------------------------
+def convmf(m_in,e_in):
+    """Convert mean to true anomaly.
+        
+    Copy of bound orbit part of GMKs IDL straight copy of Vallado's 
+    C++ routine.
+    """
+
+    m = m_in % (2. * np.pi)
+    numiter = 50
+    small = 0.00000001
+    if e_in > small:
+
+        ecc = e_in
+
+#       ;; /* ------------  initial guess ------------- */
+        if (((m < 0.0) and (m > -np.pi)) or (m > np.pi)):
+            e0 = m - ecc
+        else:
+            e0 = m + ecc
+
+        ktr = 1
+        e1  = e0 + (m - e0 + ecc * np.sin(e0)) / (1.0 - ecc * np.cos(e0))
+        while ((abs(e1 - e0) > small) and (ktr <= numiter)):
+            ktr += 1
+            e0 = e1
+            e1 = e0 + (m - e0 + ecc * np.sin(e0)) / (1.0 - ecc * np.cos(e0))
+
+#       ;; /* ---------  find true anomaly  ----------- */
+        sinv = (np.sqrt(1.0 - ecc * ecc) * np.sin(e1)) / (1.0-ecc * np.cos(e1))
+        cosv = (np.cos(e1) - ecc) / (1.0 - ecc * np.cos(e1))
+        nu   = np.arctan2( sinv, cosv)
+            
+    else:
+#       ;; /* --------------------- circular --------------------- */
+        ktr = 0
+        nu  = m
+        e0  = m
+
+    return nu
+
+
+#------------------------------------------------------------------------------
+def pos_at_epoch(element_matrices,mstar,dt):
+    '''Return the sky R and X,Y position at a given time.
+        
+    Receives the elements, stellar mass, and delta time from current
+    epoch.
+    
+    TODO: vectorise for speed (and neatness), would mean doing the same
+    for convmf.
+    '''
+
+    nvz,nz = element_matrices['a'].shape
+    x = np.zeros((nvz,nz))
+    y = np.zeros((nvz,nz))
+    
+    for j in range(nvz):
+        for k in range(nz):
+
+            # suck out the elements
+            a = element_matrices['a'][j,k]
+            # go on if a not large (see calc_elements)
+            if a == 1e9:
+                x[j,k] = 1e9
+                y[j,k] = 1e9
+                continue
+            e = element_matrices['e'][j,k]
+            i = element_matrices['i'][j,k] * np.pi/180.
+            O = element_matrices['O'][j,k] * np.pi/180.
+            w = element_matrices['w'][j,k] * np.pi/180.
+            f = element_matrices['f'][j,k] * np.pi/180.
+            
+            # mean motion (rad/yr)
+            n = 2. * np.pi * np.sqrt(mstar/a**3)
+            
+            # figure out new f at dt, convert f to M, move M, convert back...
+            eta = np.sqrt( (1.+e) / (1.-e) )
+            Ea = 2. * np.arctan( np.tan(f/2.) / eta )
+            M = Ea - e * np.sin(Ea)
+            Mep = M + dt * n
+            newf = convmf(Mep,e)
+
+            # coords in orbital plane w.r.t. to pericenter
+            r = a * ( 1. - e**2 ) / ( 1. + e * np.cos(newf) )
+            x2d = r * np.cos(newf)
+            y2d = r * np.sin(newf)
+
+            # Equation 2.122, Murray & Dermott
+            cn = np.cos(O)
+            sn = np.sin(O)
+            cp = np.cos(w)
+            sp = np.sin(w)
+            ci = np.cos(i)
+            si = np.sin(i)
+            # this is the rotation
+            x[j,k] = x2d * ( cn*cp - sn*sp*ci ) + y2d * ( -cn*sp - sn*cp*ci )
+            y[j,k] = x2d * ( sn*cp + cn*sp*ci ) + y2d * ( -sn*sp + cn*cp*ci )
+        #    z = x2d * ( sp*si )            + y2d * (  cp*si )
+
+    return np.sqrt(x**2 + y**2),x,y
+
+
+#------------------------------------------------------------------------------
 def save_data(z_vz_data, element_matrices):
     '''Saves the element grids as .txt files, with the z and vz values along
     the grid edges. Also save the bound / unbound divide line.'''
@@ -386,12 +489,12 @@ def default_contour_levels():
     return {'a': [5,10,20,50,100,200,500], \
             'e': [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.95], \
             'i': [0,15,30,45,60,75,90], \
-            'O': [0,45,90,135,180,225,270,315], \
-            'w': [0,45,90,135,180,225,270,315], \
-            'f': [0,45,90,135,180,225,270,315], \
+            'O': [0,45,90,135,180,225,270,315,360], \
+            'w': [0,45,90,135,180,225,270,315,360], \
+            'f': [0,45,90,135,180,225,270,315,360], \
             'q': [5,10,15,20,50,100,200,500], \
             'Q': [5,10,20,50,100,200,500,1000], \
-            'l': [0,45,90,135,180,225,270,315]}
+            'l': [0,45,90,135,180,225,270,315,360]}
 
 #------------------------------------------------------------------------------
 def make_contour_plots(z_vz_data, element_matrices, contour_levels, zvzfile, titlestr):
@@ -665,17 +768,6 @@ def getsys(name):
         derr = 10.
         M = 0.7
         Merr = 0.00001
-    elif name == 'HD 206893':
-        sep = np.array([260.8,274.9])/1e3
-        seperr = np.array([4.03,7.9])/1e3
-        pa = np.array([69.4,60.96])
-        paerr = np.array([0.23,1.06])
-        date = ['2015-10-4','2016-08-08']
-        d = 40.67
-        derr = 0.43
-        M = 1.27
-        Merr = 0.1
-        N,Nerr,E,Eerr = seppa2cart(sep,seperr,pa*np.pi/180.,paerr*np.pi/180.)
     elif name == 'HR3549B':
         N=np.array([-0.806,-0.788,-0.776,-0.775])
         Nerr=np.array([0.009,0.015,0.004,0.009])

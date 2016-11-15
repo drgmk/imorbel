@@ -2,12 +2,15 @@
 
 import sys
 sys.path.append('/Users/grant/code/github/imorbel')
-from funcs import *
+import argparse                     # for use as a command line script
+
+import matplotlib.pyplot as plt
 import numpy as np                  # Numerical functions
 from multiprocessing import Pool
-import argparse                     # for use as a command line script
 import corner                       # corner plots
 from astropy.time import Time       # time
+
+from funcs import *
 
 # run from the command line
 if __name__ == "__main__":
@@ -37,6 +40,12 @@ if __name__ == "__main__":
     parser.add_argument('--mass','-m',type=float,help='Stellar mass (Msun)',required=True)
     parser.add_argument('--distance','-d',type=float,help='Distance (pc)',required=True)
 
+    # other epoch constraints
+    parser.add_argument('--other-epoch',type=str,help='Other epoch',default=np.nan)
+    parser.add_argument('--other-epoch-sep',type=float,help='Sep at other epoch',default=np.nan)
+    parser.add_argument('--other-epoch-lt',help='Require r<X at ther epoch',action='store_true')
+
+    # other plotting config
     parser.add_argument('--nzvz',type=int,help='Number of z/vz grid points',default=100)
 
     parser.add_argument('--nelem',type=int,help='Number of grid points to sample',default=10000)
@@ -51,6 +60,7 @@ if __name__ == "__main__":
 
     # dt using astropy Time
     d = Time(args.date2)-Time(args.date1)
+    d.format = 'jd'
     dt = d.value/365.25
 
     # compute the basic parameters
@@ -81,6 +91,28 @@ if __name__ == "__main__":
     # Cycle through z, vz values, and derive orbital elements at each set of values
     element_matrices = get_element_grids(z_vz_data,R,V,B,phi)
 
+    # compute radius at some epoch in the past/future, use this to
+    # create a boolean grid to reject orbits
+    try:
+        dt = Time(args.other_epoch) - Time(args.date1)
+        dt.format = 'jd'
+        rsky,_,_ = pos_at_epoch(element_matrices,args.mass,dt.value/365.25)
+
+        if args.other_epoch_lt:
+            out = rsky > args.other_epoch_sep * args.distance
+            element_matrices['a'][out] = 1e9
+            element_matrices['e'][out] = 1e9
+            element_matrices['i'][out] = 1e9
+            element_matrices['O'][out] = 1e9
+            element_matrices['w'][out] = 1e9
+            element_matrices['f'][out] = 1e9
+            element_matrices['q'][out] = 1e9
+            element_matrices['Q'][out] = 1e9
+            element_matrices['l'][out] = 1e9
+    except:
+        # if other_epoch is nan, set out to False (i.e. not rejected)
+        out = np.zeros(element_matrices['a'].shape,dtype=bool)
+
     # do interactive plot
     if args.interactive:
         interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgn)
@@ -92,16 +124,28 @@ if __name__ == "__main__":
         make_contour_plots(z_vz_data, element_matrices, contour_levels, args.zvzfile, titlestr)
 
         # select random points in z/vz space and get elements
-        ## a = np.array([calc_elements_array([z_vz_data['z_list'][np.random.randint(N_z)],
-        ##                                   z_vz_data['vz_list'][np.random.randint(N_vz)],
-        ##                                   R,V,B,phi]) for i in range(args.nelem)])
+#        a = np.array([calc_elements_array([z_vz_data['z_list'][np.random.randint(N_z)],
+#                                           z_vz_data['vz_list'][np.random.randint(N_vz)],
+#                                           R,V,B,phi]) for i in range(args.nelem)])
 
         # parallel version, slightly faster but not much of a saving as lots of time is
         # spent in get_element_grids above
-        z = z_vz_data['z_list'][np.random.randint(N_z,size=args.nelem)]
-        vz = z_vz_data['vz_list'][np.random.randint(N_vz,size=args.nelem)]
+#        z = z_vz_data['z_list'][np.random.randint(N_z,size=args.nelem)]
+#        vz = z_vz_data['vz_list'][np.random.randint(N_vz,size=args.nelem)]
+#        pars = []
+#        pars = [np.append(pars,[z[i],vz[i],R,V,B,phi]) for i in range(args.nelem)]
+
+        # ensure we get nelem elements, rejecting unbound or
+        # excluded orbits
         pars = []
-        pars = [np.append(pars,[z[i],vz[i],R,V,B,phi]) for i in range(args.nelem)]
+        while len(pars) < args.nelem:
+            zi = np.random.randint(N_z)
+            vzi = np.random.randint(N_vz)
+            if not out[vzi][zi]:
+                z = z_vz_data['z_list'][zi]
+                vz = z_vz_data['vz_list'][vzi]
+                pars.append( np.append([],[z,vz,R,V,B,phi]) )
+
         pool = Pool(processes=8)
         a = np.array( pool.map(calc_elements_array,pars) )
 
