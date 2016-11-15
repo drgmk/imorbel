@@ -205,10 +205,11 @@ if __name__ == "__main__":
             el = calc_elements(pars[i][0],pars[i][1],pars[i][2],
                                pars[i][3],pars[i][4],pars[i][5])
             x,y,_,_,_  = calc_sky_orbit(el,pa0,zsgn)
-            ax.plot(x,y,alpha=0.5)
+            ax.plot(x,y,alpha=0.5,zorder=i)
 
         ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
-                  -np.sin(zsgn*phi+pa0),np.cos(zsgn*phi+pa0),angles='xy')
+                  -np.sin(zsgn*phi+pa0),np.cos(zsgn*phi+pa0),
+                  angles='xy',zorder=args.norb82)
 
         fig.savefig(args.skyfile)
         plt.close(fig)
