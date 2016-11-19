@@ -233,24 +233,52 @@ if __name__ == "__main__":
         # same i from each
 #        pars = []
 #        pars = [np.append(pars,[z[i],vz[i],Rdist[i],Vdist[i],Bdist[i],phidist[i]]) for i in range(args.nelem)]
+#        pool = Pool(processes=8)
+#        el = pool.map(calc_elements_array,pars)
+#        el = np.array(el)
 
         # ensure we get nelem elements, rejecting unbound or
-        # excluded orbits
-        pars = []
-        sky_plpar = []
-        while len(pars) < args.nelem:
+        # excluded orbits. TODO: do multiple at once (i.e. N_left)
+        el = []
+        pl_el = []
+        plpar = []
+        while len(el) < args.nelem:
             zi = np.random.randint(args.nzvz)
             vzi = np.random.randint(args.nzvz)
-            if not out[vzi][zi]:
-                z = z_vz_data['z_list'][zi]
-                vz = z_vz_data['vz_list'][vzi]
-                i = np.random.randint(args.nelem)
-                pars.append( np.array([z,vz,Rdist[i],Vdist[i],Bdist[i],phidist[i]]) )
-                if len(sky_plpar) < args.norb:
-                    sky_plpar.append( np.append(pars[-1],[pa0dist[i],zsgn[i]]) )
 
-        pool = Pool(processes=8)
-        el = pool.map(calc_elements_array,pars)
+            z = z_vz_data['z_list'][zi]
+            vz = z_vz_data['vz_list'][vzi]
+            i = np.random.randint(args.nelem)
+            
+            # elements for one orbit
+            el_one = calc_elements_array([z,vz,Rdist[i],Vdist[i],Bdist[i],phidist[i]])
+            
+            if el_one[0] == 1e9:
+                continue
+            
+            if np.isfinite(args.other_epoch_sep):
+                # sky location at epoch
+                x,y = pos_at_epoch_one(el_one[0],el_one[3],el_one[4]*np.pi/180.,
+                                       el_one[5]*np.pi/180.,el_one[6]*np.pi/180.,
+                                       el_one[8]*np.pi/180.,args.mass,dt)
+                                       
+                rsky = np.sqrt(x*x + y*y)
+
+                # decide what to do
+                if args.other_epoch_lt:
+                    if rsky > args.other_epoch_sep * args.distance:
+                        continue
+                elif args.other_epoch_gt:
+                    if not rsky < args.other_epoch_sep * args.distance:
+                        continue
+
+            el.append( el_one)
+            
+            if len(pl_el) < args.norb:
+                pl_el.append( {'a':el_one[0],'e':el_one[3],'i':el_one[4],
+                          'O':el_one[5],'w':el_one[6],'f':el_one[8]} )
+                plpar.append( np.array([pa0dist[i],zsgn[i]]) )
+
         el = np.array(el)
 
         # select a subset of these, pericenter must be +ve and e<1
@@ -279,7 +307,7 @@ if __name__ == "__main__":
         fig.savefig(args.elemfile)
         plt.close(fig)
 
-        # sky plot with some orbits
+        # sky plot with some orbits, first norb from samples above
         fig,ax = plt.subplots(figsize=(8,8))
         ax.axis('equal')
         ax.plot(0,0,'*')
@@ -295,9 +323,7 @@ if __name__ == "__main__":
             ax.add_patch(c)
 
         for i in range(args.norb):
-            el = calc_elements(sky_plpar[i][0],sky_plpar[i][1],sky_plpar[i][2],
-                               sky_plpar[i][3],sky_plpar[i][4],sky_plpar[i][5])
-            x,y,_,_,_  = calc_sky_orbit(el,sky_plpar[i][6],sky_plpar[i][7])
+            x,y,_,_,_  = calc_sky_orbit(pl_el[i],plpar[i][0],plpar[i][1])
             ax.plot(x,y,alpha=0.5,zorder=i)
 
         ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),

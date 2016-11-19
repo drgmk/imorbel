@@ -302,14 +302,50 @@ def convmf(m_in,e_in):
 
 
 #------------------------------------------------------------------------------
+def pos_at_epoch_one(a,e,i,O,w,f,mstar,dt):
+    """Compute sky X,Y,Z position at dt given elements and stellar mass.
+
+    Angles are given in radians.
+    """
+
+    # mean motion (rad/yr)
+    n = 2. * np.pi * np.sqrt(mstar/a**3)
+    
+    # figure out new f at dt, convert f to M, move M, convert back...
+    eta = np.sqrt( (1.+e) / (1.-e) )
+    Ea = 2. * np.arctan( np.tan(f/2.) / eta )
+    M = Ea - e * np.sin(Ea)
+    Mep = M + dt * n
+    newf = convmf(Mep,e)
+
+    # coords in orbital plane w.r.t. to pericenter
+    r = a * ( 1. - e**2 ) / ( 1. + e * np.cos(newf) )
+    x2d = r * np.cos(newf)
+    y2d = r * np.sin(newf)
+
+    # Equation 2.122, Murray & Dermott
+    cn = np.cos(O)
+    sn = np.sin(O)
+    cp = np.cos(w)
+    sp = np.sin(w)
+    ci = np.cos(i)
+    si = np.sin(i)
+    # this is the rotation
+    x = x2d * ( cn*cp - sn*sp*ci ) + y2d * ( -cn*sp - sn*cp*ci )
+    y = x2d * ( sn*cp + cn*sp*ci ) + y2d * ( -sn*sp + cn*cp*ci )
+#    z = x2d * ( sp*si )            + y2d * (  cp*si )
+
+    return x,y
+
+#------------------------------------------------------------------------------
 def pos_at_epoch(element_matrices,mstar,dt):
     '''Return the sky R and X,Y position at a given time.
         
     Receives the elements, stellar mass, and delta time from current
     epoch.
     
-    TODO: vectorise for speed (and neatness), would mean doing the same
-    for convmf.
+    TODO: vectorise for speed (and neatness), would (ideally) mean doing
+    the same for convmf.
     '''
 
     nvz,nz = element_matrices['a'].shape
@@ -332,33 +368,8 @@ def pos_at_epoch(element_matrices,mstar,dt):
             w = element_matrices['w'][j,k] * np.pi/180.
             f = element_matrices['f'][j,k] * np.pi/180.
             
-            # mean motion (rad/yr)
-            n = 2. * np.pi * np.sqrt(mstar/a**3)
+            x[j,k],y[j,k] = pos_at_epoch_one(a,e,i,O,w,f,mstar,dt)
             
-            # figure out new f at dt, convert f to M, move M, convert back...
-            eta = np.sqrt( (1.+e) / (1.-e) )
-            Ea = 2. * np.arctan( np.tan(f/2.) / eta )
-            M = Ea - e * np.sin(Ea)
-            Mep = M + dt * n
-            newf = convmf(Mep,e)
-
-            # coords in orbital plane w.r.t. to pericenter
-            r = a * ( 1. - e**2 ) / ( 1. + e * np.cos(newf) )
-            x2d = r * np.cos(newf)
-            y2d = r * np.sin(newf)
-
-            # Equation 2.122, Murray & Dermott
-            cn = np.cos(O)
-            sn = np.sin(O)
-            cp = np.cos(w)
-            sp = np.sin(w)
-            ci = np.cos(i)
-            si = np.sin(i)
-            # this is the rotation
-            x[j,k] = x2d * ( cn*cp - sn*sp*ci ) + y2d * ( -cn*sp - sn*cp*ci )
-            y[j,k] = x2d * ( sn*cp + cn*sp*ci ) + y2d * ( -sn*sp + cn*cp*ci )
-        #    z = x2d * ( sp*si )            + y2d * (  cp*si )
-
     return np.sqrt(x**2 + y**2),x,y
 
 
