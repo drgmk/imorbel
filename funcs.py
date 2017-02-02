@@ -456,6 +456,17 @@ def make_individual_cntr_plt(fig, gs, elmnt_str, z_vz_data, element_matrices,
     # Make subplot
     ax = fig.add_subplot(gs[subplot_number])
 
+    # add filled contours in background
+#    if elmnt_str == 'a' or elmnt_str == 'q' or elmnt_str == 'Q':
+#        fill_cont = 10**np.arange(np.log10(np.min(contour_levels[elmnt_str])),
+#                                  np.log10(np.max(contour_levels[elmnt_str])),
+#                                  0.01)
+#    else:
+#        fill_cont = np.arange(0,np.max(contour_levels[elmnt_str]),
+#                              np.max(contour_levels[elmnt_str])/100.)
+#
+#    CS1 = plt.contourf(z_list, vz_list, mat, levels=fill_cont,alpha=0.3)
+
     # Plot and label contours, with appropriate numbers of decimal places
     CS = plt.contour(z_list, vz_list, mat, contour_levels[elmnt_str])
     if elmnt_str == 'e':
@@ -579,7 +590,7 @@ class DrawOrbit:
 
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
-                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['O'],el['w'],el['f'],realom,realw,realf),
+                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['q'],el['Q'],el['O'],el['w'],el['f'],realom,realw,realf),
                      transform=self.ax.transAxes, ha='left', \
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
