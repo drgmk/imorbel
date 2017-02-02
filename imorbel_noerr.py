@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-import sys
-sys.path.append('/Users/grant/code/github/imorbel')
 import argparse                     # for use as a command line script
+import pickle
 
 import numpy as np                  # Numerical functions
 from multiprocessing import Pool
@@ -58,6 +57,8 @@ if __name__ == "__main__":
     parser.add_argument('--zvzfile',type=str,help='zvz file name',default='zvz.png')
     parser.add_argument('--elemfile',type=str,help='elem file name',default='elem_noerr.png')
     parser.add_argument('--skyfile',type=str,help='sky orbits file name',default='sky.png')
+    parser.add_argument('--pickle_zvz',action='store_true',help='pickle z/vz data')
+    parser.add_argument('--pickle_zvz_file',type=str,help='pickle file name',default='zvz.pkl')
 
     args = parser.parse_args()
 
@@ -94,6 +95,13 @@ if __name__ == "__main__":
     # Cycle through z, vz values, and derive orbital elements at each set of values
     element_matrices = get_element_grids(z_vz_data,R,V,B,phi)
 
+    # save z, vz data if desired
+    if args.pickle_zvz:
+        fh = open(args.pickle_zvz_file,'wb')
+        pickle.dump(z_vz_data,fh)
+        pickle.dump(element_matrices,fh)
+        fh.close()
+    
     # compute radius at some epoch in the past/future, use this to
     # create a boolean grid to reject orbits
     # TODO: plot constraint without implementing it
