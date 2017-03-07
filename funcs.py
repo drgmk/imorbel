@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 ###############################################################################
 '''Given a companion's sky plane position at two epochs, this program produces
 contour plots of the companion's possible orbital elements as functions of its

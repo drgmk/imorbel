@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import numpy as np
 from multiprocessing import Pool
 import pickle
@@ -57,8 +55,11 @@ if __name__ == "__main__":
     parser.add_argument('--inparams_tri',type=str,help='parameters file name',default='inparams_tri.png')
 
     parser.add_argument('--interactive','-i',action='store_true',help='Interactive plot')
+
     parser.add_argument('--pickle_zvz',action='store_true',help='pickle z/vz data')
     parser.add_argument('--pickle_zvz_file',type=str,help='pickle file name',default='zvz.pkl')
+    parser.add_argument('--pickle-samples',action='store_true',help='pickle norb samples')
+    parser.add_argument('--pickle-samples-file',type=str,help='pickle norb samples',default='orb_samples.pkl')
 
     args = parser.parse_args()
 
@@ -342,3 +343,7 @@ if __name__ == "__main__":
 
         fig.savefig(args.skyfile)
         plt.close(fig)
+
+        if args.pickle_samples:
+            with open(args.pickle_samples_file,'wb') as fh:
+                pickle.dump(pl_el[:args.norb],fh)

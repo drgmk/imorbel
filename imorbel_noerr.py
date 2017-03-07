@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import argparse                     # for use as a command line script
 import pickle
 
