@@ -623,7 +623,7 @@ def calc_sky_orbit(el,pa0,zsgn):
         return 0,0,0,0,0
 
     # orbit in frame where planet lies along x-axis
-    f = np.arange(100)/99.*360.
+    f = np.arange(100)/99.*350.
     r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
     cosO = np.cos(el['O']*np.pi/180.)
     sinO = np.sin(el['O']*np.pi/180.)
