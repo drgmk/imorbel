@@ -588,7 +588,7 @@ class DrawOrbit:
 
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
-                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}\n$f_P$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['q'],el['Q'],el['O'],el['w'],el['f'],realom,realw,realf),
+                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['q'],el['Q'],el['O'],el['w'],el['f']),
                      transform=self.ax.transAxes, ha='left', \
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
