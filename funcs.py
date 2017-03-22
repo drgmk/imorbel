@@ -318,20 +318,21 @@ def pos_at_epoch_one(a,e,i,O,w,f,mstar,dt):
 
     # coords in orbital plane w.r.t. to pericenter
     r = a * ( 1. - e**2 ) / ( 1. + e * np.cos(newf) )
-    x2d = r * np.cos(newf)
-    y2d = r * np.sin(newf)
+#    x2d = r * np.cos(newf)
+#    y2d = r * np.sin(newf)
 
     # Equation 2.122, Murray & Dermott
-    cn = np.cos(O)
-    sn = np.sin(O)
-    cp = np.cos(w)
-    sp = np.sin(w)
+    Om = np.pi/2. + O
+    cn = np.cos(Om)
+    sn = np.sin(Om)
+    cp = np.cos(w+newf)
+    sp = np.sin(w+newf)
     ci = np.cos(i)
     si = np.sin(i)
     # this is the rotation
-    x = x2d * ( cn*cp - sn*sp*ci ) + y2d * ( -cn*sp - sn*cp*ci )
-    y = x2d * ( sn*cp + cn*sp*ci ) + y2d * ( -sn*sp + cn*cp*ci )
-#    z = x2d * ( sp*si )            + y2d * (  cp*si )
+    x = r * ( cn*cp - sn*sp*ci )
+    y = r * ( sn*cp + cn*sp*ci )
+    z = r * ( sp*si )
 
     return x,y
 
@@ -584,11 +585,11 @@ class DrawOrbit:
         if event.inaxes == self.orb.axes: return
         if event.xdata == None: return
         el = calc_elements(event.xdata,event.ydata,self.R,self.V,self.B,self.phi)
-        x,y,realom,realw,realf = calc_sky_orbit(el,self.pa0,self.zsgn)
+        x,y,reali,realom,realw = calc_sky_orbit(el,self.pa0,self.zsgn)
 
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
-                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}'.format(el['a'],el['e'],el['i'],el['q'],el['Q'],el['O'],el['w'],el['f']),
+                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}'.format(el['a'],el['e'],reali,el['q'],el['Q'],el['O'],el['w'],el['f'],realom,realw),
                      transform=self.ax.transAxes, ha='left', \
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
@@ -598,7 +599,7 @@ class DrawOrbit:
         # star and goes to orbit at preicenter (f=0 is first array element)
         if event.button != None:
             plt.plot(np.append([0],x),np.append([0],y))
-            print('aeiOwf:',el['a'],el['e'],el['i'],el['O'],el['w'],el['f'])
+            print('sky aeiOwf:',el['a'],el['e'],reali,realom,realw,el['f'])
         else:
             self.orb.set_data(np.append([0],x),np.append([0],y))
         self.orb.figure.canvas.draw()
@@ -611,14 +612,17 @@ def calc_sky_orbit(el,pa0,zsgn):
     """
 
     realom = (pa0*180/np.pi)+zsgn*el['O']
-    if realom < 0: realom += 360.
+    while realom < 0: realom += 360.
     if zsgn < 0:
-        realw = 360. - el['w']
-        realf = 360. - el['f']
+        realom += 180.
+        reali = 180. - el['i']
+        realw = el['w'] + 180.
     else:
         realw = el['w']
-        realf = el['f']
+        reali = el['i']
 
+    if realom > 360.: realom -= 360.
+                          
     if el['e'] > 1.:
         return 0,0,0,0,0
 
@@ -637,7 +641,7 @@ def calc_sky_orbit(el,pa0,zsgn):
     r,t = cart2pol(x,y)
     t += np.pi/2. + pa0
     x,y = pol2cart(r,t)
-    return x,y,realom,realw,realf
+    return x,y,reali,realom,realw
 
 
 #------------------------------------------------------------------------------
