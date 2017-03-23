@@ -6,6 +6,11 @@ from multiprocessing import Pool
 import corner                       # corner plots
 from astropy.time import Time       # time
 
+import os
+import sys
+fpath = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(fpath)
+
 from funcs import *
 
 # run from the command line

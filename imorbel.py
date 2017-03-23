@@ -2,6 +2,12 @@ import numpy as np
 from multiprocessing import Pool
 import pickle
 import corner
+
+import os
+import sys
+fpath = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(fpath)
+
 from funcs import *
 
 # run from the command line
