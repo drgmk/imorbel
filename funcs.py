@@ -627,6 +627,14 @@ def calc_sky_orbit(el,pa0,zsgn):
     if el['e'] > 1.:
         return 0,0,0,0,0
 
+    fs = np.arange(100)/99.*2*np.pi
+    x = np.zeros(len(fs))
+    y = np.zeros(len(fs))
+    for j,f in enumerate(fs):
+        x[j],y[j] = pos_at_epoch_one(el['a'],el['e'],reali*np.pi/180.,
+                                     realom*np.pi/180.,realw*np.pi/180.,f,1.,0.)
+    return x,y,reali,realom,realw
+
     # orbit in frame where planet lies along x-axis
     f = np.arange(100)/99.*350.
     r = el['a']*(1-el['e']**2)/(1+el['e']*np.cos(f*np.pi/180.))
