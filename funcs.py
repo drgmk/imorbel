@@ -621,8 +621,9 @@ def calc_sky_orbit(el,pa0,zsgn):
         realw = el['w']
         reali = el['i']
 
-    if realom > 360.: realom -= 360.
-                          
+    while realom > 360.: realom -= 360.
+    while realw > 360.: realw -= 360.
+    
     if el['e'] > 1.:
         return 0,0,0,0,0
 
