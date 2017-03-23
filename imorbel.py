@@ -54,6 +54,7 @@ if __name__ == "__main__":
     parser.add_argument('--zvzfile',type=str,help='zvz file name',default='zvz.png')
     parser.add_argument('--elemfile',type=str,help='elem file name',default='elem.png')
     parser.add_argument('--skyfile',type=str,help='sky orbits file name',default='sky.png')
+    parser.add_argument('--skyzoomfile',type=str,help='zoomed sky orbits file name',default='sky-zoom.png')
 
     parser.add_argument('--velfit_sky',type=str,help='velfit sky file name',default='velfit_sky.png')
     parser.add_argument('--velfit_tri',type=str,help='velfit corner file name',default='velfit_tri.png')
@@ -130,7 +131,7 @@ if __name__ == "__main__":
     z_vz_data = get_z_vz_data(R,V,B,args.nzvz,args.nzvz)
 
     # Cycle through z, vz values, and derive orbital elements at each set of values
-    element_matrices = get_element_grids(z_vz_data,R,V,B,phi)
+    element_matrices = get_element_grids(z_vz_data,R,V,B,phi,pa0,zsgnbest)
 
     # save z, vz data if desired
     if args.pickle_zvz:
@@ -171,7 +172,8 @@ if __name__ == "__main__":
     # do interactive plot for best fit and exit when window is closed
     if args.interactive:
         plt.close('all')
-        interactive_contour_plot(z_vz_data, element_matrices, contour_levels,R,V,B,phi,pa0,zsgnbest)
+        interactive_contour_plot(z_vz_data, element_matrices, contour_levels,
+                                 R,V,B,phi,pa0,zsgnbest)
         exit
 
     # or make plots
@@ -268,7 +270,8 @@ if __name__ == "__main__":
             i = np.random.randint(args.nelem)
             
             # elements for one orbit
-            el_one = calc_elements_array([z,vz,Rdist[i],Vdist[i],Bdist[i],phidist[i]])
+            el_one = calc_elements_array([z,vz,Rdist[i],Vdist[i],Bdist[i],
+                                          phidist[i],pa0dist[i],zsgn[i]])
             
             if el_one[0] == 1e9:
                 continue
@@ -319,36 +322,54 @@ if __name__ == "__main__":
                             labels=('$a/au$','$q/au$','$Q/au$',
                                     '$e$','$I/^\circ$','$\Omega/^\circ$',
                                     '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
-                            range=[1.,(0.,np.max(el[:,1])),1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
+                            range=[1.,(0.,np.max(el[:,1])),1.,(0,1),1.,(0,360),(0,360),(0,360),(0,360)])
         axes[1,4].set_title(titlestr)
         fig.savefig(args.elemfile)
         plt.close(fig)
 
         # sky plot with some orbits, first norb from samples above
-        fig,ax = plt.subplots(figsize=(8,8))
-        ax.axis('equal')
-        ax.plot(0,0,'*')
+        for j in [0,1]:
+            fig,ax = plt.subplots(figsize=(8,8))
+            ax.axis('equal')
+            ax.plot(0,0,'*')
 
-        ax.set_xlim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
-        ax.set_ylim(np.min(z_vz_data['z_list']),np.max(z_vz_data['z_list']))
-        ax.set_xlabel(r'$x_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
-        ax.set_ylabel(r'$y_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
+            ax.set_xlabel(r'$x_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
+            ax.set_ylabel(r'$y_{sky}$ / au', fontsize = 16, fontname="Times New Roman")
 
-        if np.isfinite(args.other_epoch_sep):
-            c = plt.Circle((0,0),args.other_epoch_sep*args.distance,fill=False,
-                           linestyle='--',lw=2)
-            ax.add_patch(c)
+            if np.isfinite(args.other_epoch_sep):
+                c = plt.Circle((0,0),args.other_epoch_sep*args.distance,fill=False,
+                               linestyle='--',lw=2)
+                ax.add_patch(c)
 
-        for i in range(args.norb):
-            x,y,_,_,_  = calc_sky_orbit(pl_el[i],plpar[i][0],plpar[i][1])
-            ax.plot(x,y,alpha=0.5,zorder=i)
+            for i in range(args.norb):
+                x,y,_,_,_  = calc_sky_orbit(pl_el[i])#,plpar[i][0],plpar[i][1])
+                ax.plot(x,y,alpha=0.5,zorder=i)
 
-        ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
-                  -np.sin(zsgnbest*phi+pa0),np.cos(zsgnbest*phi+pa0),
-                  angles='xy',zorder=args.norb*2)
+            if j == 0:
+                
+                sc = 2.0
+                ax.set_xlim(sc*np.min(z_vz_data['z_list']),
+                            sc*np.max(z_vz_data['z_list']))
+                ax.set_ylim(sc*np.min(z_vz_data['z_list']),
+                            sc*np.max(z_vz_data['z_list']))
+                ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
+                          -np.sin(zsgnbest*phi+pa0),np.cos(zsgnbest*phi+pa0),
+                          angles='xy',zorder=args.norb*2)
+                fig.savefig(args.skyfile)
+            else:
+                
+                sc = 1.2
+                ax.set_xlim(-sc*np.max(np.abs(E))*args.distance,
+                            sc*np.max(np.abs(E))*args.distance)
+                ax.set_ylim(-sc*np.max(np.abs(N))*args.distance,
+                            sc*np.max(np.abs(N))*args.distance)
+                ax.scatter(E*args.distance,N*args.distance,zorder=args.norb*2)
+                ax.errorbar(E*args.distance,N*args.distance,
+                            xerr=e_E*args.distance,yerr=e_N*args.distance,
+                            zorder=args.norb*2)
+                fig.savefig(args.skyzoomfile)
 
-        fig.savefig(args.skyfile)
-        plt.close(fig)
+            plt.close(fig)
 
         if args.pickle_samples:
             with open(args.pickle_samples_file,'wb') as fh:

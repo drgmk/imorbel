@@ -110,10 +110,10 @@ def get_z_vz_data(R,V,B,N_z,N_vz):
 
 #------------------------------------------------------------------------------
 def calc_elements_array(p):
-    l = calc_elements(p[0],p[1],p[2],p[3],p[4],p[5])
+    l = calc_elements(p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7])
     return np.array([l['a'],l['q'],l['Q'],l['e'],l['i'],l['O'],l['w'],l['l'],l['f']])
 
-def calc_elements(z,vz,R,V,B,phi):
+def calc_elements(z,vz,R,V,B,phi,pa0,zsgn):
     '''Derives orbital elements from position and velocity using the method of
     Murray and Durmott 1999 (equations 2.126 - 2.139). Dimensionless units are
     used, where rho = z/R, nu = vz/V, ap = a/R and hp = h/(VR). Phi is in
@@ -147,7 +147,8 @@ def calc_elements(z,vz,R,V,B,phi):
     Si = np.sin(i)
 
     # Theta (w+f) and longitude of ascending node
-    if i == 0: O, theta = 0., 0.        # Theta = 0 because r = x
+    if i == 0:
+        O, theta = 0., 0.        # Theta = 0 because r = x
     else:
 
         O = np.arctan2(hxp/(hp*Si), -hyp/(hp*Si))
@@ -166,6 +167,13 @@ def calc_elements(z,vz,R,V,B,phi):
 
     # Argument of pericentre
     w = theta - f
+
+    # account for zsgn
+    O = zsgn * pa0 + O
+    if zsgn < 0:
+        O = np.pi - O
+        i = np.pi - i
+        w = w + np.pi
 
     # Convert angles to degrees, and define to lie between 0 and 360 deg:
     i *= 180./np.pi
@@ -198,7 +206,7 @@ def calc_elements(z,vz,R,V,B,phi):
     return elements
 
 #------------------------------------------------------------------------------
-def get_element_grids(z_vz_data,R,V,B,phi):
+def get_element_grids(z_vz_data,R,V,B,phi,pa0,zsgn):
     '''Cycles through z and vz values. For each combination resulting in a
     bound orbit, calculates the corresponding orbital elements. Outputs grids
     of orbital elements for contour plotting.'''
@@ -231,7 +239,7 @@ def get_element_grids(z_vz_data,R,V,B,phi):
             vz = vz_list[vz_ind]
 
             # Calculate elements corresponding to these z, vz coordinates
-            elements = calc_elements(z,vz,R,V,B,phi)
+            elements = calc_elements(z,vz,R,V,B,phi,pa0,zsgn)
 
             # Add elements to matrices
             a_mat[vz_ind][z_ind] = elements['a']
@@ -509,7 +517,7 @@ def default_contour_levels():
     # Lists of contour levels for each orbital element. Angles in degrees
     return {'a': [5,10,20,50,100,200,500], \
             'e': [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.95], \
-            'i': [0,15,30,45,60,75,90], \
+            'i': [0,15,30,45,60,75,90,105,120,135,150,165,180], \
             'O': [0,45,90,135,180,225,270,315,360], \
             'w': [0,45,90,135,180,225,270,315,360], \
             'f': [0,45,90,135,180,225,270,315,360], \
@@ -584,12 +592,13 @@ class DrawOrbit:
         # only draw if we're inside the plot, and not in the orbit plot
         if event.inaxes == self.orb.axes: return
         if event.xdata == None: return
-        el = calc_elements(event.xdata,event.ydata,self.R,self.V,self.B,self.phi)
-        x,y,reali,realom,realw = calc_sky_orbit(el,self.pa0,self.zsgn)
+        el = calc_elements(event.xdata,event.ydata,self.R,self.V,self.B,self.phi,
+                           self.pa0,self.zsgn)
+        x,y,reali,realom,realw = calc_sky_orbit(el)
 
         [txt.remove() for txt in self.ax.texts]
         self.ax.text(.025,.975,
-                     '$a$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\nPearce angles\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}\nSky angles\n$\Omega_P$: {:5.1f}\n$\omega_P$: {:5.1f}'.format(el['a'],el['e'],reali,el['q'],el['Q'],el['O'],el['w'],el['f'],realom,realw),
+                     '$a$: {:5.1f}\n$q$: {:5.1f}\n$Q$: {:5.1f}\n$e$: {:4.2f}\n$i$: {:4.1f}\n$\Omega$: {:5.1f}\n$\omega$: {:5.1f}\n$f$: {:5.1f}'.format(el['a'],el['q'],el['Q'],el['e'],el['i'],el['O'],el['w'],el['f']),
                      transform=self.ax.transAxes, ha='left', \
                      va='top', fontsize = 10, fontname="Times New Roman", \
                      bbox=dict(facecolor='white', edgecolor='white', pad=1), zorder=4)
@@ -599,13 +608,13 @@ class DrawOrbit:
         # star and goes to orbit at preicenter (f=0 is first array element)
         if event.button != None:
             plt.plot(np.append([0],x),np.append([0],y))
-            print('sky aeiOwf:',el['a'],el['e'],reali,realom,realw,el['f'])
+            print('aeiOwf:',el['a'],el['e'],el['i'],el['O'],el['f'])
         else:
             self.orb.set_data(np.append([0],x),np.append([0],y))
         self.orb.figure.canvas.draw()
 
 #------------------------------------------------------------------------------
-def calc_sky_orbit(el,pa0,zsgn):
+def calc_sky_orbit(el,pa0=0,zsgn=1):
     """Calculate orbit on the sky.
         
     TODO:merge this with pos_at_epoch
@@ -627,7 +636,7 @@ def calc_sky_orbit(el,pa0,zsgn):
     if el['e'] > 1.:
         return 0,0,0,0,0
 
-    fs = np.arange(100)/99.*2*np.pi
+    fs = np.arange(100)/99.*2*np.pi*0.97
     x = np.zeros(len(fs))
     y = np.zeros(len(fs))
     for j,f in enumerate(fs):
@@ -788,7 +797,7 @@ def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
         ax.set_ylabel(r'$\delta$, arcsec')
         ax.invert_xaxis()
         ax.scatter(-1*E,N)
-        ax.errorbar(-1*E,N,xerr=Eerr,yerr=Nerr,)
+        ax.errorbar(-1*E,N,xerr=Eerr,yerr=Nerr)
         fig.savefig(skyfile)
         plt.close(fig)
 

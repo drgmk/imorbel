@@ -166,7 +166,7 @@ if __name__ == "__main__":
             if not out[vzi][zi]:
                 z = z_vz_data['z_list'][zi]
                 vz = z_vz_data['vz_list'][vzi]
-                pars.append( np.append([],[z,vz,R,V,B,phi]) )
+                pars.append( np.append([],[z,vz,R,V,B,phi,pa0,zsgn]) )
 
         pool = Pool(processes=8)
         a = np.array( pool.map(calc_elements_array,pars) )
@@ -192,7 +192,7 @@ if __name__ == "__main__":
                             labels=('$a/au$','$q/au$','$Q/au$',
                                     '$e$','$I/^\circ$','$\Omega/^\circ$',
                                     '$\omega/^\circ$',r'$\varpi/^\circ$','$f/^\circ$'),
-                            range=[1.,(0.,np.max(a[:,1])),1.,(0,1),(0,90),(0,360),(0,360),(0,360),(0,360)])
+                            range=[1.,(0.,np.max(a[:,1])),1.,(0,1),1.,(0,360),(0,360),(0,360),(0,360)])
 
         axes[1,4].set_title(titlestr)
         fig.savefig(args.elemfile)
@@ -214,8 +214,9 @@ if __name__ == "__main__":
 
         for i in range(args.norb):
             el = calc_elements(pars[i][0],pars[i][1],pars[i][2],
-                               pars[i][3],pars[i][4],pars[i][5])
-            x,y,_,_,_  = calc_sky_orbit(el,pa0,zsgn)
+                               pars[i][3],pars[i][4],pars[i][5]
+                               pars[i][6],pars[i][7])
+            x,y,_,_,_  = calc_sky_orbit(el)#,pa0,zsgn)
             ax.plot(x,y,alpha=0.5,zorder=i)
 
         ax.quiver(R*np.cos(pa0+np.pi/2.),R*np.sin(pa0+np.pi/2.),
