@@ -94,7 +94,7 @@ if __name__ == "__main__":
     # get samples of x_0, y_0, V and direction and best fit
     nwalk = 32
     samples = velfit(t,N,e_N,E,e_E,
-                     nwalkers=nwalk,nruns=1000,
+                     nwalkers=nwalk,nruns=10000,
                      plotsky=True,skyfile=args.velfit_sky,
                      plottri=True,trifile=args.velfit_tri,
                      plotchain=True,chainfile=args.velfit_chain)

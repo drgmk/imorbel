@@ -742,7 +742,7 @@ def plot_chain(chain,fname,labels=('par0','par1','par2','par3')):
     plt.close(fig)
 
 '''Return samples from mcmc fitting to companion positions'''
-def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
+def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=10000,
            plottri=False,trifile='velfit_tri.png',
            plotsky=False,skyfile='velfit_sky.png',
            plotchain=False,chainfile='velfit_chain.png'):
@@ -756,7 +756,7 @@ def velfit(t,N,Nerr,E,Eerr,nwalkers=32,nruns=1000,
     ndim = len(par)
     pos = [par + 1e-4*par*np.random.randn(ndim) for i in range(nwalkers)]
     sampler = emcee.EnsembleSampler(nwalkers,ndim,velfit_func,args=(t,N,Nerr,E,Eerr),threads=1)
-    pos,_,_ = sampler.run_mcmc(pos,nruns)
+    pos,_,_ = sampler.run_mcmc(pos,1000)
     sampler.reset()
     pos,_,_ = sampler.run_mcmc(pos,nruns)
 
