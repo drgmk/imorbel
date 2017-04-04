@@ -122,6 +122,9 @@ if __name__ == "__main__":
     print("Zsign =",zsgnbest)
     print('')
 
+    if B > 1:
+        print("Warning: B>1, object may not be bound...")
+
     titlestr = str(args)+'\n\n'
 
     # use these contour levels
@@ -220,7 +223,11 @@ if __name__ == "__main__":
         # Define tested region of z, vz space, maximising by choosing the largest B and
         # smallest R and V (c.f. Pearce+15 eq 4) we will throw away more samples, but
         # won't miss them this way
-        z_vz_data = get_z_vz_data(np.min(R),np.min(V),np.max(B),args.nzvz,args.nzvz)
+        # TODO: an unsolved issue is what to do when B's distribution goes > 1
+        print("WARNING: B distribution goes > 1. Truncating")
+        z_vz_data = get_z_vz_data(np.min(R),np.min(V),
+                                  np.min(np.append(0.999,np.max(B))),
+                                  args.nzvz,args.nzvz)
 
         # compute larger random sample, repeatedly sample from samples, but additional
         # randomisation comes from random sampling of distance and mass
@@ -273,7 +280,7 @@ if __name__ == "__main__":
             el_one = calc_elements_array([z,vz,Rdist[i],Vdist[i],Bdist[i],
                                           phidist[i],pa0dist[i],zsgn[i]])
             
-            if el_one[0] == 1e9:
+            if el_one[0] == 1e9 or not np.isfinite(el_one[0]):
                 continue
             
             if np.isfinite(args.other_epoch_sep):
@@ -307,6 +314,7 @@ if __name__ == "__main__":
         ok1 = (el[:,2] < args.Qmax)
 
         ok = np.all([ok,ok1],axis=0)
+        print("samples remaining: {} of {}".format(np.sum(ok),len(el)))
 
         # make corner plot, size pasted from corner code
         K = len(el[0])
