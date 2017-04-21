@@ -608,7 +608,7 @@ class DrawOrbit:
         # star and goes to orbit at preicenter (f=0 is first array element)
         if event.button != None:
             plt.plot(np.append([0],x),np.append([0],y))
-            print('aeiOwf:',el['a'],el['e'],el['i'],el['O'],el['f'])
+            print('aeiOwf:',el['a'],el['e'],el['i'],el['O'],el['w'],el['f'])
         else:
             self.orb.set_data(np.append([0],x),np.append([0],y))
         self.orb.figure.canvas.draw()
